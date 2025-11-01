@@ -1,0 +1,24 @@
+{
+  "name": "tubealgo",
+  "version": "1.0.0",
+  "description": "Tailwind CSS build for TubeAlgo",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/main.css -o ./static/css/output.css --minify",
+    "build:css:dev": "tailwindcss -i ./static/css/main.css -o ./static/css/output.css --watch",
+    "build:js": "esbuild static/js/main.js --bundle --outfile=static/js/bundle.js --minify",
+    "build": "npm run build:css && npm run build:js",
+    "dev": "npm run build:css:dev"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
+    "autoprefixer": "^10.4.16",
+    "esbuild": "^0.20.2",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "engines": {
+    "node": ">=18.0.0 <=22.0.0",
+    "npm": ">=8.0.0"
+  }
+}

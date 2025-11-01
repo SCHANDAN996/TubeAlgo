@@ -1,0 +1,128 @@
+/* tubealgo/static/css/main.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 262 84% 54%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 262 84% 54%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 5.9% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 5.9% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 262 84% 54%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262 84% 54%;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #7e22ce 0%, #16a34a 100%);
+}
+
+.editable-title {
+    @apply w-full bg-transparent text-xl font-bold p-2 rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary;
+}
+
+.editable-outline {
+    @apply w-full h-96 bg-transparent text-base p-2 rounded-md text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none;
+    font-family: inherit;
+    line-height: 1.7;
+}
+
+.dark .editable-title, .dark .editable-outline {
+    @apply text-gray-200 placeholder-gray-500;
+}
+
+.script-content h1, .script-content h2, .script-content h3 {
+    @apply font-bold text-foreground mb-3 mt-4 border-b border-border pb-2 text-lg;
+}
+.script-content h1 { @apply text-xl; }
+.script-content h2 { @apply text-lg; }
+.script-content h3 { @apply text-base font-semibold border-none pb-1; }
+
+.script-content strong, .script-content b {
+    @apply font-semibold text-primary;
+}
+
+.dark .script-content strong, .dark .script-content b {
+    @apply text-purple-400;
+}
+
+.script-content ul {
+    @apply list-disc pl-5 mt-2 space-y-2;
+}
+
+.script-content p,
+.script-content li {
+    @apply text-muted-foreground leading-relaxed;
+}
+
+
+/* ... आपकी मौजूदा CSS के बाद इसे जोड़ें ... */
+
+@layer components {
+  .badge {
+    @apply text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5;
+  }
+  .badge-viral {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-400;
+  }
+  .badge-engaging {
+    @apply bg-sky-500/10 text-sky-600 dark:text-sky-400;
+  }
+}
+
+/* Tooltip trigger wrapper */
+.tooltip-trigger {
+  @apply cursor-pointer;
+}
+
+/* <<< बदलाव यहाँ है: साइज़ अपडेट किया गया >>> */
+.youtube-icon-compliant {
+  width: 116px;  /* 96px * (29/24) */
+  height: 96px; /* h-24 */
+  margin: 0px;
+  vertical-align: middle;
+  display: inline-block;
+}
