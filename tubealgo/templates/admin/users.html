@@ -1,0 +1,94 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Users{% endblock %}
+{% block header_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <form method="GET" class="flex flex-col md:flex-row gap-3">
+        <input type="text" name="search" value="{{ search_term }}" placeholder="Search by email..." class="flex-grow bg-background border border-input rounded-lg px-4 py-2">
+        <select name="plan" class="bg-background border border-input rounded-lg px-4 py-2">
+            <option value="">All Plans</option>
+            <option value="free" {% if plan_filter == 'free' %}selected{% endif %}>Free</option>
+            <option value="creator" {% if plan_filter == 'creator' %}selected{% endif %}>Creator</option>
+            <option value="pro" {% if plan_filter == 'pro' %}selected{% endif %}>Pro</option>
+        </select>
+        <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold hover:bg-primary/90">
+            <i class="fa-solid fa-search mr-2"></i>Search
+        </button>
+    </form>
+</div>
+
+<div class="bg-card rounded-lg border">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-secondary">
+                <tr>
+                    <th class="p-4 font-semibold">Email</th>
+                    <th class="p-4 font-semibold">Plan</th>
+                    <th class="p-4 font-semibold">Status</th>
+                    <th class="p-4 font-semibold">Registered</th>
+                    <th class="p-4 font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in pagination.items %}
+                <tr class="border-t">
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            {% if user.is_admin %}
+                                <span class="text-xs bg-purple-500/10 text-purple-800 px-2 py-0.5 rounded-full font-bold">ADMIN</span>
+                            {% endif %}
+                            {{ user.email }}
+                        </div>
+                    </td>
+                    <td class="p-4 capitalize">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold
+                            {% if user.subscription_plan == 'free' %}bg-gray-100 text-gray-800{% endif %}
+                            {% if user.subscription_plan == 'creator' %}bg-green-100 text-green-800{% endif %}
+                            {% if user.subscription_plan == 'pro' %}bg-purple-100 text-purple-800{% endif %}">
+                            {{ user.subscription_plan }}
+                        </span>
+                    </td>
+                    <td class="p-4">
+                        <span class="capitalize font-semibold {{ 'text-red-600' if user.status == 'suspended' else 'text-green-600' }}">
+                            {{ user.status }}
+                        </span>
+                    </td>
+                    <td class="p-4 text-muted-foreground">{{ user.created_at.strftime('%d %b %Y') }}</td>
+                    <td class="p-4">
+                        <a href="{{ url_for('admin.user_details', user_id=user.id) }}" class="text-primary hover:underline font-semibold">View Details</a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="5" class="p-6 text-center text-muted-foreground">No users found.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if pagination.pages > 1 %}
+<div class="mt-6 flex justify-between items-center">
+    <p class="text-sm text-muted-foreground">
+        Showing {{ pagination.items | length }} of {{ pagination.total }} users.
+    </p>
+    <div class="flex items-center space-x-1">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.users', page=pagination.prev_num, search=search_term, plan=plan_filter) }}" class="px-3 py-1 rounded-md bg-card border hover:bg-secondary">&laquo;</a>
+        {% endif %}
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                <a href="{{ url_for('admin.users', page=page_num, search=search_term, plan=plan_filter) }}" class="px-3 py-1 rounded-md border {{ 'bg-primary text-primary-foreground' if page_num == pagination.page else 'bg-card hover:bg-secondary' }}">{{ page_num }}</a>
+            {% else %}
+                <span class="px-3 py-1">...</span>
+            {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+            <a href="{{ url_for('admin.users', page=pagination.next_num, search=search_term, plan=plan_filter) }}" class="px-3 py-1 rounded-md bg-card border hover:bg-secondary">&raquo;</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

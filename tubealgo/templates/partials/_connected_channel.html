@@ -1,0 +1,25 @@
+{% if channel %}
+    <h2>Your Connected Channel</h2>
+    <div>
+        <img src="{{ channel.thumbnail_url }}" alt="Channel Thumbnail" style="width: 80px; height: 80px; border-radius: 50%; vertical-align: middle; margin-right: 15px;">
+        <strong>{{ channel.channel_title }}</strong>
+    </div>
+    {% if data and 'error' not in data %}
+        <h3>Key Statistics:</h3>
+        <ul style="list-style-type: none; padding: 0;">
+            <li><strong>Subscribers:</strong> {{ "{:,}".format(data['Subscribers']) }}</li>
+            <li><strong>Total Views:</strong> {{ "{:,}".format(data['Total Views']) }}</li>
+            <li><strong>Total Videos:</strong> {{ "{:,}".format(data['Video Count']) }}</li>
+        </ul>
+    {% elif data and 'error' in data %}
+         <p style="color: red;">Could not load stats: {{ data['error'] }}</p>
+    {% endif %}
+{% else %}
+    <h2>Connect Your YouTube Channel</h2>
+    <p>To get started, please enter your YouTube channel URL, @handle, or ID below:</p>
+    <form method="POST" action="{{ url_for('dashboard.connect_channel') }}">
+        <input type="text" name="channel_url" size="50" placeholder="e.g., MrBeast, @MrBeast, or full URL" required>
+        <button type="submit">Connect Channel</button>
+    </form>
+{% endif %}
+<hr>

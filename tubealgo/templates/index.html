@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero-gradient text-primary-foreground py-20 md:py-32">
+    <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-6 leading-tight font-display">Unlock Your YouTube Growth. 🚀</h1>
+        <p class="text-lg md:text-xl max-w-3xl mx-auto mb-10 opacity-90">Get the AI-powered playbook to analyze competitors, discover viral ideas, and grow your channel faster.</p>
+        <form action="{{ url_for('core.instant_analysis') }}" method="POST" class="max-w-xl mx-auto">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input type="text" name="channel_url" class="flex-grow bg-white/20 border border-white/30 text-white placeholder-white/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white" placeholder="Enter any YouTube Channel URL or @handle" required>
+                <button type="submit" class="bg-white text-primary px-6 py-3 rounded-lg font-semibold hover:bg-slate-200 transition-colors shadow-lg">Analyze Any Channel for Free</button>
+            </div>
+             <p class="text-sm mt-3 text-white/80">Instant insights. No signup required.</p>
+        </form>
+    </div>
+</section>
+{% endblock %}

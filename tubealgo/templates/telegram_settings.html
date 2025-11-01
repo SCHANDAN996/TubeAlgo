@@ -1,0 +1,65 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12">
+        <a href="{{ url_for('settings.settings') }}" class="text-sm font-medium text-primary hover:underline mb-4 inline-block"><i class="fa-solid fa-arrow-left mr-2"></i>Back to Settings</a>
+        <h1 class="text-4xl font-bold text-foreground font-display">Telegram Notifications</h1>
+        <p class="text-lg text-muted-foreground mt-2">Manage your real-time competitor alerts.</p>
+    </div>
+    <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+        
+        <form method="POST" action="{{ url_for('settings.telegram_settings') }}" class="space-y-8">
+            {{ form.csrf_token }}
+
+            <div>
+                <h2 class="text-xl font-bold text-foreground">Connect Your Account</h2>
+                <p class="text-muted-foreground mt-1">To get your Chat ID, message <a href="https://t.me/userinfobot" target="_blank" class="text-primary font-semibold underline">@userinfobot</a> on Telegram and paste your ID below.</p>
+                <div class="flex flex-col sm:flex-row gap-2 mt-4 items-start">
+                    <input type="text" name="telegram_chat_id" id="telegram_chat_id" class="flex-grow bg-background border border-input rounded-lg px-4 py-2" value="{{ current_user.telegram_chat_id or '' }}" placeholder="Enter your numeric Chat ID">
+                    
+                    <button type="submit" formaction="{{ url_for('settings.test_telegram') }}" class="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-border whitespace-nowrap">
+                        <i class="fa-solid fa-paper-plane mr-2"></i>Send Test Message
+                    </button>
+                    </div>
+                 {% if current_user.telegram_chat_id %}
+                    <div class="mt-4 p-3 bg-green-500/10 text-green-700 text-sm rounded-lg border border-green-500/20">
+                        <i class="fa-solid fa-check-circle mr-2"></i>Your account is connected with Chat ID: {{ current_user.telegram_chat_id }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold text-foreground">Choose Your Alerts</h2>
+                <p class="text-muted-foreground mt-1">Select which notifications you want to receive.</p>
+                <div class="space-y-4 mt-4">
+                    {% macro toggle(name, label, description, checked) %}
+                    <label class="flex items-center justify-between p-4 bg-secondary rounded-lg cursor-pointer">
+                        <div>
+                            <p class="font-semibold text-foreground">{{ label }}</p>
+                            <p class="text-sm text-muted-foreground">{{ description }}</p>
+                        </div>
+                        <div class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="{{ name }}" class="sr-only peer" {% if checked %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </div>
+                    </label>
+                    {% endmacro %}
+
+                    {{ toggle('notify_new_video', 'New Video Alert', 'Get notified when a competitor uploads a new video.', current_user.telegram_notify_new_video) }}
+                    {{ toggle('notify_viral_video', 'Viral Video Alert', 'Get an alert when a competitor\'s video starts going viral.', current_user.telegram_notify_viral_video) }}
+                    {{ toggle('notify_ai_suggestion', 'AI Video Suggestions', 'Receive AI-powered video ideas with viral alerts.', current_user.telegram_notify_ai_suggestion) }}
+                    {{ toggle('notify_milestone', 'Milestone Alert', 'Get notified when a competitor reaches a new milestone.', current_user.telegram_notify_milestone) }}
+                    {{ toggle('notify_weekly_report', 'Weekly Performance Report', 'Receive a summary of your competitors\' performance every week.', current_user.telegram_notify_weekly_report) }}
+                </div>
+            </div>
+
+            <div class="text-right border-t pt-6">
+                <button type="submit" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold">
+                    <i class="fa-solid fa-save mr-2"></i>Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

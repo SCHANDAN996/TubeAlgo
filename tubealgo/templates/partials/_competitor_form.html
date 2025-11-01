@@ -1,0 +1,75 @@
+<div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm mb-12"
+     x-data="{
+         query: '',
+         suggestions: [],
+         loading: false,
+         showSuggestions: false,
+         activeIndex: -1,
+         selectedChannelTitle: '',
+         limit: {{ competitor_limit }},
+         currentCount: {{ competitors|length }},
+         get limitReached() { return this.limit !== -1 && this.currentCount >= this.limit; },
+         init() {
+            this.$watch('query', (newValue) => {
+                if (newValue !== this.selectedChannelTitle) {
+                    this.$refs.hiddenIdInput.value = '';
+                    this.selectedChannelTitle = '';
+                }
+            });
+         },
+         fetchSuggestions() {
+             if (this.query.length < 3) { this.suggestions = []; this.showSuggestions = false; return; }
+             this.loading = true; this.showSuggestions = true;
+             fetch(`{{ url_for('api.api_search_channels') }}?q=${this.query}`)
+                 .then(res => res.json())
+                 .then(data => { this.suggestions = data; this.activeIndex = -1; })
+                 .finally(() => this.loading = false);
+         },
+         selectSuggestion(channel) {
+             this.query = channel.title;
+             this.selectedChannelTitle = channel.title;
+             this.$refs.hiddenIdInput.value = channel.channel_id;
+             this.showSuggestions = false; this.activeIndex = -1;
+         },
+         handleKeydown(event) {
+            if (!this.showSuggestions || this.suggestions.length === 0) return;
+            if (event.key === 'ArrowDown') {
+                event.preventDefault(); this.activeIndex = (this.activeIndex + 1) % this.suggestions.length;
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault(); this.activeIndex = (this.activeIndex - 1 + this.suggestions.length) % this.suggestions.length;
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (this.activeIndex !== -1) { this.selectSuggestion(this.suggestions[this.activeIndex]); }
+            }
+         }
+     }"
+     @click.away="showSuggestions = false">
+    
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-foreground flex items-center"><i class="fa-solid fa-user-plus mr-3 text-brand-green"></i> Add a New Competitor</h2>
+        <div class="text-sm font-semibold text-muted-foreground">Usage: <span class="text-foreground" x-text="currentCount"></span> / <span class="text-foreground" x-text="limit === -1 ? 'Unlimited' : limit"></span></div>
+    </div>
+    <template x-if="limitReached"></template>
+    <form id="add-competitor-form" method="POST" action="{{ url_for('competitor.add_competitor') }}" class="relative" x-show="!limitReached">
+        {{ form.csrf_token }}
+        <div class="flex flex-col sm:flex-row gap-2">
+            <input type="text" name="channel_url" class="flex-grow bg-background border border-input rounded-lg px-4 py-3 text-base" placeholder="Enter competitor's channel name or URL" required autocomplete="off" x-model="query" @input.debounce.300ms="fetchSuggestions()" @keydown="handleKeydown($event)" @keydown.escape.window="showSuggestions = false">
+            <input type="hidden" name="channel_id_hidden" x-ref="hiddenIdInput">
+            <button type="submit" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold">Add Competitor</button>
+        </div>
+        <div x-show="showSuggestions" x-transition class="absolute top-full mt-2 w-full sm:w-auto sm:min-w-[50%] bg-card border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto" x-cloak>
+            <div x-show="loading" class="p-4 text-center text-muted-foreground flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading...</div>
+            <template x-if="!loading && suggestions.length > 0">
+                <ul>
+                    <template x-for="(channel, index) in suggestions" :key="channel.channel_id">
+                        <li @click="selectSuggestion(channel)" class="p-3 flex items-center gap-3 cursor-pointer hover:bg-secondary" :class="{ 'bg-primary/10': activeIndex === index }">
+                            <img :src="channel.thumbnail" class="w-8 h-8 rounded-full">
+                            <span class="text-sm font-medium" x-text="channel.title"></span>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+            <div x-show="!loading && suggestions.length === 0 && query.length >= 3" class="p-4 text-center text-muted-foreground text-sm">No channels found.</div>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,270 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+
+{# --- If channel is not connected, show connection prompt --- #}
+{% if not current_user.channel or not current_user.google_refresh_token %}
+<div class="max-w-2xl mx-auto text-center py-16">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 bg-brand-red/10 text-brand-red">
+        <i class="fa-brands fa-youtube text-3xl"></i>
+    </div>
+    <h1 class="text-4xl font-bold text-foreground font-display">Connect Your Channel</h1>
+    <p class="text-lg text-muted-foreground mt-4">To get started with your personalized dashboard, please connect your YouTube account. We'll automatically find your channel.</p>
+    <a href="{{ url_for('auth_google.connect_youtube') }}" class="mt-8 inline-flex items-center bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg">
+         <i class="fa-brands fa-google mr-3"></i> Connect with Google
+    </a>
+</div>
+
+{# --- If channel is connected, show the dashboard --- #}
+{% else %}
+<div x-data="dashboard()">
+    {{ form.hidden_tag() }} {# Renders the hidden CSRF token input field #}
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground font-display">Growth Command Center</h1>
+            <p class="text-muted-foreground mt-1">Your daily briefing for YouTube growth.</p>
+        </div>
+        <div class="flex items-center gap-4">
+             <div x-show="saveStatus" x-transition class="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                <span x-show="isSavingLayout"><i class="fa-solid fa-spinner fa-spin"></i></span>
+                <span x-text="saveStatus"></span>
+            </div>
+
+             <button @click="resetLayout()" class="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-border transition-colors shadow-sm">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span>Reset Layout</span>
+             </button>
+            <a href="{{ url_for('report.generate_monthly_report') }}" target="_blank" class="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-border transition-colors shadow-sm">
+                <i class="fa-solid fa-file-pdf text-red-500"></i>
+                <span>Download Report</span>
+            </a>
+        </div>
+    </div>
+
+    <template x-if="isLoading">
+        {% include 'partials/_dashboard_loader.html' %}
+    </template>
+
+    <template x-if="error">
+        <div class="bg-destructive/10 text-destructive p-6 rounded-xl border border-destructive/20 text-center">
+            <p class="font-bold">Oops! Something went wrong.</p>
+            <p class="text-sm" x-text="error"></p>
+        </div>
+    </template>
+
+    <div x-show="!isLoading && !error" class="space-y-6" x-cloak>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6" id="sortable-left">
+
+                <div data-id="kpis">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                        <h3 class="text-xs font-bold uppercase text-muted-foreground">Key Metrics</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-card p-5 rounded-xl border flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center bg-brand-purple/10 text-brand-purple"><i class="fa-solid fa-users text-2xl"></i></div>
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Subscribers</p>
+                                <p class="text-3xl font-bold text-foreground mt-1" x-text="data.kpis ? Number(data.kpis.subscribers).toLocaleString() : '...'"></p>
+                            </div>
+                        </div>
+                        <div class="bg-card p-5 rounded-xl border flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center bg-brand-green/10 text-brand-green"><i class="fa-solid fa-eye text-2xl"></i></div>
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Total Views</p>
+                                <p class="text-3xl font-bold text-foreground mt-1" x-text="data.kpis ? Number(data.kpis.views).toLocaleString() : '...'"></p>
+                            </div>
+                        </div>
+                        <div class="bg-card p-5 rounded-xl border flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center bg-brand-blue/10 text-brand-blue"><i class="fa-solid fa-video text-2xl"></i></div>
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Total Videos</p>
+                                <p class="text-3xl font-bold text-foreground mt-1" x-text="data.kpis ? Number(data.kpis.videos).toLocaleString() : '...'"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div data-id="growth_chart">
+                    <div class="bg-card p-6 rounded-xl border shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold text-foreground font-display flex items-center gap-2">
+                                <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                                Last 30 Days Growth
+                            </h2>
+                            <div class="flex items-center gap-2 bg-secondary p-1 rounded-lg border">
+                                <button @click="updateChart('subscribers')" :class="{ 'bg-primary text-primary-foreground': activeChartMetric === 'subscribers' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">Subscribers</button>
+                                <button @click="updateChart('views')" :class="{ 'bg-primary text-primary-foreground': activeChartMetric === 'views' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">Views</button>
+                            </div>
+                        </div>
+                        <div class="h-80"><canvas x-ref="growthChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div data-id="top_videos">
+                    <div class="bg-card p-6 rounded-xl border">
+                        <h2 class="text-xl font-bold text-foreground font-display mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                             🚀 Top Recent Videos from Competitors
+                        </h2>
+                        <div class="space-y-4">
+                            <template x-if="!data.top_recent_videos || data.top_recent_videos.length === 0">
+                                <p class="text-sm text-muted-foreground">Add competitors to see their top performing recent videos here.</p>
+                            </template>
+                            <template x-for="video in data.top_recent_videos" :key="video.id">
+                                <a :href="'/video/' + video.id" class="flex items-center gap-4 group">
+                                    <img :src="video.thumbnail" class="w-32 h-18 object-cover rounded-md flex-shrink-0" alt="Top recent video thumbnail">
+                                    <div>
+                                        <p class="text-sm font-semibold line-clamp-2 group-hover:text-primary" x-text="video.title"></p>
+                                        <p class="text-xs text-muted-foreground mt-1">by <strong x-text="video.channel_title"></strong></p>
+                                        <span class="text-xs font-semibold text-gray-500 bg-gray-500/10 px-2 py-0.5 rounded-full mt-1.5 inline-block"><i class="fa-solid fa-eye"></i> <span x-text="Number(video.view_count).toLocaleString()"></span></span>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1 space-y-6" id="sortable-right">
+                <div data-id="goal">
+                    <div class="bg-card p-6 rounded-xl border">
+                        <h2 class="text-xl font-bold text-foreground font-display mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                            🎯 Goal Center
+                        </h2>
+                        <template x-if="data.goal">
+                            <div>
+                                <p class="text-sm font-semibold capitalize" x-text="`Reach ${Number(data.goal.target_value).toLocaleString()} ${data.goal.goal_type.replace('_', ' ')}`"></p>
+                                <p class="text-xs text-muted-foreground" x-text="data.goal.target_date ? `Target: ${new Date(data.goal.target_date).toLocaleDateString()}` : 'No target date'"></p>
+                                <div class="w-full bg-secondary rounded-full h-2.5 mt-3">
+                                    <div class="bg-primary h-2.5 rounded-full" :style="`width: ${data.goal.progress_percentage}%`"></div>
+                                </div>
+                                <div class="flex justify-between text-xs mt-1">
+                                    <span class="font-semibold" x-text="Number(data.goal.current_value).toLocaleString()"></span>
+                                    <span class="text-muted-foreground" x-text="Number(data.goal.target_value).toLocaleString()"></span>
+                                </div>
+                                <p class="text-xs text-center mt-2 bg-green-500/10 text-green-700 p-2 rounded-md" x-text="data.goal.projection_text"></p>
+                            </div>
+                        </template>
+                        <template x-if="!data.goal">
+                            <div class="text-center">
+                                <p class="text-sm text-muted-foreground">You haven't set a goal yet.</p>
+                                <button @click="openGoalModal()" class="mt-2 text-sm font-semibold text-primary hover:underline">Set a New Goal</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div data-id="best_time">
+                    <div class="bg-card p-6 rounded-xl border">
+                        <h2 class="text-xl font-bold text-foreground font-display flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                            <i class="fa-solid fa-clock text-blue-500"></i> Best Time to Post
+                        </h2>
+                        <template x-if="data.best_time_to_post">
+                            <div>
+                                <p class="text-sm text-muted-foreground" x-text="data.best_time_to_post.message"></p>
+                                <template x-if="data.best_time_to_post.day">
+                                    <div class="mt-3 bg-blue-500/10 text-blue-800 dark:text-blue-300 p-4 rounded-lg text-center">
+                                        <p class="font-bold text-lg" x-text="data.best_time_to_post.day"></p>
+                                        <p class="font-semibold text-2xl" x-text="data.best_time_to_post.time_range"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="!data.best_time_to_post">
+                            <p class="text-sm text-muted-foreground">Loading suggestion...</p>
+                        </template>
+                    </div>
+                </div>
+
+                 <div data-id="ai_assistant">
+                    <div class="bg-card p-6 rounded-xl border-2 border-dashed border-primary/50">
+                        <h2 class="text-xl font-bold text-foreground font-display flex items-center gap-3 mb-4">
+                            <i class="fa-solid fa-grip-vertical text-muted-foreground cursor-grab drag-handle"></i>
+                            <i class="fa-solid fa-brain text-primary"></i> AI Growth Assistant
+                        </h2>
+                        <div class="space-y-3">
+                            <template x-if="!data.ai_assistant || data.ai_assistant.length === 0">
+                                <p class="text-sm text-muted-foreground">No new suggestions right now. Check back later!</p>
+                            </template>
+                            <template x-for="item in data.ai_assistant" :key="item.text">
+                                <div class="flex items-start gap-3 p-3 bg-secondary rounded-lg">
+                                    <i class="mt-1" :class="getIconForSuggestion(item.type)"></i>
+                                    <p class="text-sm"><strong x-text="item.title + ': '"></strong><span x-text="item.text"></span></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Goal Modal #}
+    <div x-show="showGoalModal" x-transition.opacity class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4" @keydown.escape.window="showGoalModal = false" x-cloak>
+        <div @click.away="showGoalModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="p-5 border-b">
+                <h3 class="text-lg font-bold text-foreground">Set a New Growth Goal</h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="font-medium text-sm">What do you want to track?</label>
+                    <select x-model="newGoal.type" class="mt-1 block w-full bg-background border border-input rounded-lg p-3 text-sm">
+                        <option value="subscribers">Subscribers</option>
+                        <option value="views">Total Views</option>
+                        <option value="videos_uploaded">Videos to Upload (This Month)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-medium text-sm">What is your target value?</label>
+                    <input type="number" x-model.number="newGoal.target" class="mt-1 block w-full bg-background border border-input rounded-lg p-3 text-sm" placeholder="e.g., 100000">
+                </div>
+                <div x-show="newGoal.type !== 'videos_uploaded'">
+                    <label class="font-medium text-sm">Target Date (Optional)</label>
+                    <input type="date" x-model="newGoal.date" class="mt-1 block w-full bg-background border border-input rounded-lg p-3 text-sm">
+                </div>
+                <p x-show="goalError" x-text="goalError" class="text-sm text-destructive"></p>
+            </div>
+            <div class="px-6 py-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+                <button type="button" @click="showGoalModal = false" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+                <button type="button" @click="saveGoal()" class="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">Set Goal</button>
+            </div>
+        </div>
+    </div>
+
+    {# Reset Confirmation Modal #}
+    <div x-show="showResetConfirmModal" x-transition.opacity class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4" @keydown.escape.window="cancelReset()" x-cloak>
+         <div @click.away="cancelReset()" class="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 text-center p-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-500/10">
+                <i class="fa-solid fa-triangle-exclamation text-yellow-500 text-xl"></i>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-lg leading-6 font-bold text-foreground">Confirm Reset</h3>
+                <div class="mt-2">
+                    <p class="text-sm text-muted-foreground">Are you sure you want to reset your dashboard layout to the default arrangement?</p>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button @click="cancelReset()" type="button" class="flex-1 inline-flex justify-center rounded-lg shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border">
+                    Cancel
+                </button>
+                <button @click="proceedWithReset()" type="button" class="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700">
+                    Yes, Reset Layout
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div> {# End of x-data="dashboard()" #}
+{% endif %} {# End of {% else %} for channel connected check #}
+
+{# --- JavaScript Data Passed to dashboard.js --- #}
+<script>
+    // Note: CSRF token is read directly from the hidden input in dashboard.js init() now
+    const DASHBOARD_PAGE_DATA = {}; // Can keep this object if needed later, otherwise remove
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

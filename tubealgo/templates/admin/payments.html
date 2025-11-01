@@ -1,0 +1,61 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Payment History{% endblock %}
+{% block header_title %}Payment History{% endblock %}
+
+{% block content %}
+<div class="bg-card rounded-lg border">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-secondary">
+                <tr>
+                    <th class="p-4 font-semibold">User Email</th>
+                    <th class="p-4 font-semibold">Plan</th>
+                    <th class="p-4 font-semibold">Amount</th>
+                    <th class="p-4 font-semibold">Payment ID</th>
+                    <th class="p-4 font-semibold">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for payment in pagination.items %}
+                <tr class="border-t">
+                    <td class="p-4">
+                        <a href="{{ url_for('admin.user_details', user_id=payment.user.id) }}" class="text-primary hover:underline">{{ payment.user.email }}</a>
+                    </td>
+                    <td class="p-4 capitalize">{{ payment.plan_id }}</td>
+                    <td class="p-4 font-semibold">₹{{ "%.2f"|format(payment.amount / 100) }}</td>
+                    <td class="p-4 text-muted-foreground font-mono text-xs">{{ payment.razorpay_payment_id }}</td>
+                    <td class="p-4 text-muted-foreground">{{ payment.created_at.strftime('%d %b %Y, %I:%M %p') }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="5" class="p-6 text-center text-muted-foreground">No payments found.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if pagination.pages > 1 %}
+<div class="mt-6 flex justify-between items-center">
+    <p class="text-sm text-muted-foreground">
+        Showing {{ pagination.items | length }} of {{ pagination.total }} payments.
+    </p>
+    <div class="flex items-center space-x-1">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.payments', page=pagination.prev_num) }}" class="px-3 py-1 rounded-md bg-card border hover:bg-secondary">&laquo;</a>
+        {% endif %}
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                <a href="{{ url_for('admin.payments', page=page_num) }}" class="px-3 py-1 rounded-md border {{ 'bg-primary text-primary-foreground' if page_num == pagination.page else 'bg-card hover:bg-secondary' }}">{{ page_num }}</a>
+            {% else %}
+                <span class="px-3 py-1">...</span>
+            {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+            <a href="{{ url_for('admin.payments', page=pagination.next_num) }}" class="px-3 py-1 rounded-md bg-card border hover:bg-secondary">&raquo;</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

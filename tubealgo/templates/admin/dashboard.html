@@ -1,0 +1,204 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+    <div class="bg-card p-6 rounded-lg border">
+        <div class="flex items-center">
+            <div class="bg-blue-500/10 text-blue-500 rounded-lg p-3 mr-4">
+                <i class="fa-solid fa-users text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-muted-foreground">Total Users</h3>
+                <p class="text-3xl font-bold text-foreground mt-1">{{ total_users }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-card p-6 rounded-lg border">
+        <div class="flex items-center">
+            <div class="bg-green-500/10 text-green-500 rounded-lg p-3 mr-4">
+                <i class="fa-solid fa-gem text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-muted-foreground">Subscribed Users</h3>
+                <p class="text-3xl font-bold text-foreground mt-1">{{ subscribed_users }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-card p-6 rounded-lg border">
+        <div class="flex items-center">
+            <div class="bg-purple-500/10 text-purple-500 rounded-lg p-3 mr-4">
+                <i class="fa-solid fa-user-plus text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-muted-foreground">New Users Today</h3>
+                <p class="text-3xl font-bold text-foreground mt-1">{{ users_today }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="lg:col-span-2 bg-card p-6 rounded-lg border">
+        <h3 class="font-semibold text-foreground mb-4">New Users (Last 30 Days)</h3>
+        <div class="h-64">
+            <canvas id="userGrowthChart"></canvas>
+        </div>
+    </div>
+    <div class="lg:col-span-1 bg-card p-6 rounded-lg border">
+        <h3 class="font-semibold text-foreground mb-4">Plan Distribution</h3>
+        <div class="h-64">
+            <canvas id="planDistributionChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-card rounded-lg border">
+        <div class="p-4 border-b">
+            <h3 class="font-semibold text-foreground">YouTube API Status</h3>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <p class="text-sm text-muted-foreground">Estimated Quota Usage (Today)</p>
+                {% set total_quota = (api_key_count * 10000) or 1 %}
+                {% set used_quota = exhausted_today_count * 10000 %}
+                {% set usage_percent = (used_quota / total_quota) * 100 %}
+                <div class="w-full bg-secondary rounded-full h-2.5 mt-2">
+                    <div class="bg-primary h-2.5 rounded-full" style="width: {{ usage_percent }}%"></div>
+                </div>
+                <p class="text-xs text-muted-foreground text-right mt-1">~{{ "{:,.0f}".format(used_quota) }} / {{ "{:,.0f}".format(total_quota) }} Units</p>
+            </div>
+            <div>
+                <p class="text-sm text-muted-foreground mb-2">Key Status</p>
+                <div class="space-y-2">
+                    {% for key_id in key_identifiers %}
+                        {% set status = key_status_map.get(key_id) %}
+                        <div class="text-xs p-2 rounded bg-secondary">
+                            <div class="flex justify-between items-center">
+                                <span class="font-mono">{{ key_id }}</span>
+                                {% if status and status.status == 'exhausted' %}
+                                    <span class="font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800">Exhausted</span>
+                                {% else %}
+                                    <span class="font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Active</span>
+                                {% endif %}
+                            </div>
+                            {% if status and status.last_failure_at %}
+                                <p class="text-muted-foreground mt-1">Last failure: {{ status.last_failure_at.strftime('%d %b, %H:%M') }} UTC</p>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-muted-foreground">No API keys configured.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <a href="https://console.cloud.google.com/apis/dashboard" target="_blank" class="block w-full text-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600">
+                <i class="fa-solid fa-chart-line mr-2"></i>Check Accurate Quota
+            </a>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-card rounded-lg border">
+        <div class="p-4 border-b">
+            <h3 class="font-semibold text-foreground">Recently Registered Users</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-secondary">
+                    <tr>
+                        <th class="p-4 font-semibold">Email</th>
+                        <th class="p-4 font-semibold">Plan</th>
+                        <th class="p-4 font-semibold">Registered On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for user in recent_users %}
+                    <tr class="border-t">
+                        <td class="p-4">
+                            <a href="{{ url_for('admin.user_details', user_id=user.id) }}" class="text-primary hover:underline">{{ user.email }}</a>
+                        </td>
+                        <td class="p-4 capitalize">{{ user.subscription_plan }}</td>
+                        <td class="p-4 text-muted-foreground">{{ user.created_at.strftime('%d %b %Y') }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="p-4 text-center text-muted-foreground">No recent users found.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. User Growth Chart
+    fetch("{{ url_for('admin.user_growth_data') }}")
+        .then(response => response.json())
+        .then(apiData => {
+            const ctx = document.getElementById('userGrowthChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)');
+            gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: apiData.labels,
+                    datasets: [{
+                        label: 'New Users',
+                        data: apiData.data,
+                        borderColor: 'hsl(var(--primary))',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        pointBackgroundColor: 'hsl(var(--primary))',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        });
+
+    // 2. Plan Distribution Chart
+    fetch("{{ url_for('admin.plan_distribution_data') }}")
+        .then(response => response.json())
+        .then(apiData => {
+            const ctx = document.getElementById('planDistributionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: apiData.labels,
+                    datasets: [{
+                        label: 'User Plans',
+                        data: apiData.data,
+                        backgroundColor: [
+                            'rgba(107, 114, 128, 0.7)', // Gray for Free
+                            'rgba(52, 211, 153, 0.7)', // Green for Creator
+                            'rgba(139, 92, 246, 0.7)'  // Purple for Pro
+                        ],
+                        borderColor: 'hsl(var(--card))',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+        });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{# tubealgo/templates/admin/user_details.html #}
+
+{% extends "admin/admin_layout.html" %}
+{% block title %}User Details{% endblock %}
+{% block header_title %}User Details: {{ user.email }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="md:col-span-2 space-y-6">
+        {# User Information Card #}
+        <div class="bg-card p-6 rounded-lg border">
+            <h3 class="font-semibold border-b pb-2 mb-4">User Information</h3>
+            <div class="space-y-2 text-sm">
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>User ID:</strong> {{ user.id }}</p>
+                {# Use localize filter if available and desired #}
+                <p><strong>Registered On:</strong> {{ user.created_at | localize('%d %B %Y, %I:%M %p') }} UTC</p>
+                <p><strong>Status:</strong> <span class="capitalize font-semibold {{ 'text-red-600' if user.status == 'suspended' else 'text-green-600' }}">{{ user.status }}</span></p>
+                 <p><strong>Telegram Connected:</strong>
+                    {% if user.telegram_chat_id %}
+                        <span class="text-green-600 font-semibold">Yes (ID: {{ user.telegram_chat_id }})</span>
+                    {% else %}
+                        <span class="text-muted-foreground">No</span>
+                    {% endif %}
+                 </p>
+                 <p><strong>Timezone:</strong> <span class="text-muted-foreground">{{ user.timezone or 'Not Set' }}</span></p>
+            </div>
+        </div>
+
+        {# Subscription Management Card #}
+        <div class="bg-card p-6 rounded-lg border">
+            <h3 class="font-semibold border-b pb-2 mb-4">Subscription Management</h3>
+            <div class="space-y-4">
+                {# Current Plan Display #}
+                <div>
+                    <p><strong>Current Plan:</strong> <span class="capitalize font-semibold text-primary">{{ user.subscription_plan }}</span></p>
+                    {% if user.subscription_plan != 'free' %}
+                        {% if remaining_days is not none and remaining_days > 0 %}
+                            <p><strong>Days Remaining:</strong> <span class="font-bold text-green-600">{{ remaining_days }} days</span></p>
+                            {% if user.subscription_end_date %}
+                                 {# Use localize filter if available #}
+                                 <p class="text-xs text-muted-foreground">Expires on: {{ user.subscription_end_date | localize('%d %b, %Y') }} UTC</p>
+                            {% endif %}
+                        {% elif user.subscription_end_date %} {# Show expiry date even if expired #}
+                            <p><strong>Status:</strong> <span class="font-bold text-red-600">Expired</span></p>
+                            <p class="text-xs text-muted-foreground">Expired on: {{ user.subscription_end_date | localize('%d %b, %Y') }} UTC</p>
+                        {% else %}
+                             <p class="text-muted-foreground">No active subscription duration found.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                 {# --- Change Plan Form --- #}
+                 <form action="{{ url_for('admin.upgrade_user', user_id=user.id) }}" method="POST" class="border-t pt-4">
+                     {# <<< CSRF Token included via hidden_tag >>> #}
+                     {{ form.hidden_tag() }}
+                     <label for="plan" class="text-sm font-medium">Change Plan:</label>
+                     <div class="flex items-center gap-2 mt-2">
+                          <select name="plan" id="plan" class="flex-grow bg-background border border-input rounded-lg py-2 px-3">
+                             <option value="free" {% if user.subscription_plan == 'free' %}selected{% endif %}>Free</option>
+                             <option value="creator" {% if user.subscription_plan == 'creator' %}selected{% endif %}>Creator</option>
+                             <option value="pro" {% if user.subscription_plan == 'pro' %}selected{% endif %}>Pro</option>
+                         </select>
+                         <button type="submit" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90">Update Plan</button>
+                     </div>
+                 </form>
+
+                 {# --- Modify Subscription Duration Form --- #}
+                {% if user.subscription_plan != 'free' %}
+                <form action="{{ url_for('admin.update_subscription', user_id=user.id) }}" method="POST" class="border-t pt-4">
+                    {# <<< CSRF Token included via hidden_tag >>> #}
+                    {{ form.hidden_tag() }}
+                    <label for="days_to_add" class="text-sm font-medium">Modify Subscription Duration:</label>
+                    <p class="text-xs text-muted-foreground">Enter a positive number to add days, or a negative number to remove days.</p>
+                    <div class="flex items-center gap-2 mt-2">
+                         <input type="number" name="days_to_add" id="days_to_add" class="flex-grow bg-background border border-input rounded-lg py-2 px-3" placeholder="e.g., 30 or -7" required>
+                        <button type="submit" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90">Update Days</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Connected Channel Info (If exists) #}
+        {% if user.channel %}
+        <div class="bg-card p-6 rounded-lg border">
+            <h3 class="font-semibold border-b pb-2 mb-4">Connected YouTube Channel</h3>
+            <div class="flex items-center gap-4">
+                <img src="{{ user.channel.thumbnail_url or url_for('static', filename='img/placeholder.png') }}" alt="Channel Thumbnail" class="w-16 h-16 rounded-full border">
+                <div>
+                    <p class="font-semibold">{{ user.channel.channel_title }}</p>
+                    <p class="text-sm text-muted-foreground font-mono">{{ user.channel.channel_id_youtube }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>{# End Left Column #}
+
+    {# Account Actions Card #}
+    <div class="md:col-span-1">
+        <div class="bg-card p-6 rounded-lg border">
+            <h3 class="font-semibold border-b pb-2 mb-4">Account Actions</h3>
+            <div class="space-y-4">
+                {# --- Toggle Status Form --- #}
+                <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST">
+                    {# <<< CSRF Token included via hidden_tag >>> #}
+                    {{ form.hidden_tag() }}
+                    {% if user.status == 'active' %}
+                        <button type="submit" class="w-full bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600">Suspend User</button>
+                    {% else %}
+                        <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700">Reactivate User</button>
+                    {% endif %}
+                </form>
+
+                 {# --- Reset User Form --- #}
+                 <form action="{{ url_for('admin.reset_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to reset this user? This will delete their connected channel, competitors, and dashboard data but will NOT delete their account.');">
+                    {# <<< CSRF Token included via hidden_tag >>> #}
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Reset User Account</button>
+                </form>
+
+                {# --- Delete User Form --- #}
+                <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('DANGER: Are you sure you want to PERMANENTLY DELETE this user? This action cannot be undone.');">
+                    {# <<< CSRF Token included via hidden_tag >>> #}
+                     {{ form.hidden_tag() }}
+                    <button type="submit" class="w-full bg-destructive text-destructive-foreground px-4 py-2 rounded-lg font-semibold hover:bg-destructive/90 {% if user.is_admin %}opacity-50 cursor-not-allowed{% endif %}" {% if user.is_admin %}disabled title="Cannot delete admin users"{% endif %}>Delete User Permanently</button>
+                </form>
+            </div>
+        </div>
+    </div>{# End Right Column #}
+</div>
+{% endblock %}

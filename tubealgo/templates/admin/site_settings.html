@@ -1,0 +1,285 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Site Settings{% endblock %}
+{% block header_title %}Site Settings{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('admin.site_settings') }}" class="space-y-6">
+    {{ form.hidden_tag() }}
+
+    <!-- General Settings -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-gear mr-3 text-primary"></i>
+                General Settings
+            </h3>
+        </div>
+        <div class="p-6 space-y-6">
+            <div>
+                <label for="MEASUREMENT_ID" class="block text-sm font-medium text-foreground mb-2">
+                    Google Analytics ID
+                </label>
+                <p class="text-xs text-muted-foreground mb-2">Example: G-XXXXXXXXXX</p>
+                <input type="text" 
+                       name="MEASUREMENT_ID" 
+                       id="MEASUREMENT_ID" 
+                       value="{{ settings.get('MEASUREMENT_ID', '') }}" 
+                       class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                       placeholder="G-XXXXXXXXXX">
+            </div>
+            
+            <div>
+                <label for="site_announcement" class="block text-sm font-medium text-foreground mb-2">
+                    Site Announcement
+                </label>
+                <p class="text-xs text-muted-foreground mb-2">This message will appear on the dashboard for all users. Leave blank to hide.</p>
+                <textarea name="site_announcement" 
+                          id="site_announcement" 
+                          rows="3" 
+                          class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="Enter announcement text...">{{ settings.get('site_announcement', '') }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Flags -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-toggle-on mr-3 text-primary"></i>
+                Feature Flags
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Enable or disable features globally</p>
+        </div>
+        <div class="p-6 space-y-4">
+            <!-- Referral System -->
+            <label class="flex items-center justify-between p-4 bg-secondary rounded-lg cursor-pointer hover:bg-secondary/80 transition-colors">
+                <div class="flex-1">
+                    <p class="font-semibold text-foreground">Referral System</p>
+                    <p class="text-sm text-muted-foreground">Enable/disable the referral system for users</p>
+                </div>
+                <div class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" 
+                           name="feature_referral_system" 
+                           value="True" 
+                           class="sr-only peer" 
+                           {% if settings.get('feature_referral_system', 'True') == 'True' %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    <input type="hidden" name="feature_referral_system" value="False" {% if settings.get('feature_referral_system', 'True') == 'True' %}disabled{% endif %}>
+                </div>
+            </label>
+            
+            <!-- Video Upload -->
+            <label class="flex items-center justify-between p-4 bg-secondary rounded-lg cursor-pointer hover:bg-secondary/80 transition-colors">
+                <div class="flex-1">
+                    <p class="font-semibold text-foreground">Video Upload Feature</p>
+                    <p class="text-sm text-muted-foreground">Allow users to upload videos directly</p>
+                </div>
+                <div class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" 
+                           name="feature_video_upload" 
+                           value="True" 
+                           class="sr-only peer" 
+                           {% if settings.get('feature_video_upload', 'True') == 'True' %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    <input type="hidden" name="feature_video_upload" value="False" {% if settings.get('feature_video_upload', 'True') == 'True' %}disabled{% endif %}>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Limits -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-layer-group mr-3 text-primary"></i>
+                Bulk Edit Limits (Per Day)
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Set the maximum number of videos a user can bulk edit per day. Use -1 for unlimited.</p>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label for="bulk_edit_limit_free" class="block text-sm font-medium text-foreground mb-2">
+                    Free Plan Limit
+                </label>
+                <input type="number" 
+                       name="bulk_edit_limit_free" 
+                       id="bulk_edit_limit_free" 
+                       value="{{ settings.get('bulk_edit_limit_free', 0) }}" 
+                       min="-1" 
+                       class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            </div>
+            <div>
+                <label for="bulk_edit_limit_creator" class="block text-sm font-medium text-foreground mb-2">
+                    Creator Plan Limit
+                </label>
+                <input type="number" 
+                       name="bulk_edit_limit_creator" 
+                       id="bulk_edit_limit_creator" 
+                       value="{{ settings.get('bulk_edit_limit_creator', 20) }}" 
+                       min="-1" 
+                       class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            </div>
+            <div>
+                <label for="bulk_edit_limit_pro" class="block text-sm font-medium text-foreground mb-2">
+                    Pro Plan Limit
+                </label>
+                <input type="number" 
+                       name="bulk_edit_limit_pro" 
+                       id="bulk_edit_limit_pro" 
+                       value="{{ settings.get('bulk_edit_limit_pro', 50) }}" 
+                       min="-1" 
+                       class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Management -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-key mr-3 text-primary"></i>
+                API Key Management
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Keys saved here override .env file values. Leave blank to keep existing key.</p>
+        </div>
+        
+        <!-- Admin Telegram Chat ID (Highlighted) -->
+        <div class="bg-blue-500/5 border-b border-blue-500/20 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex-1">
+                    <label for="ADMIN_TELEGRAM_CHAT_ID" class="block text-sm font-bold text-blue-700 dark:text-blue-400 mb-2">
+                        <i class="fa-brands fa-telegram mr-2"></i>
+                        Admin Telegram Chat ID
+                    </label>
+                    <p class="text-xs text-blue-600/80 dark:text-blue-400/80 mb-3">Set your numeric Chat ID to receive critical system alerts</p>
+                    <input type="text" 
+                           name="ADMIN_TELEGRAM_CHAT_ID" 
+                           id="ADMIN_TELEGRAM_CHAT_ID" 
+                           value="{{ settings.get('ADMIN_TELEGRAM_CHAT_ID', '') }}" 
+                           class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                           placeholder="Enter numeric Chat ID">
+                </div>
+                <form action="{{ url_for('admin.reset_setting', key_name='ADMIN_TELEGRAM_CHAT_ID') }}" method="POST" onsubmit="return confirm('Reset to default?')">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors whitespace-nowrap">
+                        <i class="fa-solid fa-rotate-left mr-2"></i>Reset
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Other API Keys -->
+        <div class="p-6">
+            {% macro api_key_row(key_name, label, placeholder, icon="fa-key") %}
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-4 bg-secondary rounded-lg">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-solid {{ icon }} text-primary"></i>
+                        <label for="{{ key_name }}" class="text-sm font-medium text-foreground">{{ label }}</label>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs text-muted-foreground">Current:</span>
+                        <code class="text-xs font-mono px-2 py-1 bg-background rounded border border-border">{{ mask_key(key_name) }}</code>
+                    </div>
+                    <input type="password" 
+                           name="{{ key_name }}" 
+                           id="{{ key_name }}" 
+                           class="w-full bg-background border border-input rounded-lg px-4 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary" 
+                           placeholder="{{ placeholder }}" 
+                           autocomplete="off">
+                </div>
+                <form action="{{ url_for('admin.reset_setting', key_name=key_name) }}" method="POST" onsubmit="return confirm('Reset this key to .env value?')">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors whitespace-nowrap">
+                        <i class="fa-solid fa-rotate-left mr-1"></i>Reset
+                    </button>
+                </form>
+            </div>
+            {% endmacro %}
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Column 1 -->
+                    <div class="space-y-4">
+                        {{ api_key_row('OPENAI_API_KEY', 'OpenAI API Key (Optional)', 'Leave blank to keep current', 'fa-robot') }}
+                        {{ api_key_row('YOUTUBE_API_KEYS', 'YouTube API Keys', 'Comma-separated keys', 'fa-brands fa-youtube') }}
+                        {{ api_key_row('TELEGRAM_BOT_TOKEN', 'Telegram Bot Token', 'Bot token from @BotFather', 'fa-brands fa-telegram') }}
+                        {{ api_key_row('CASHFREE_APP_ID', 'Cashfree App ID', 'Your Cashfree App ID', 'fa-credit-card') }}
+                    </div>
+                    
+                    <!-- Column 2 -->
+                    <div class="space-y-4">
+                        {{ api_key_row('CASHFREE_SECRET_KEY', 'Cashfree Secret Key', 'Your Cashfree Secret', 'fa-lock') }}
+                        {{ api_key_row('RAZORPAY_KEY_ID', 'Razorpay Key (Legacy)', 'Legacy payment key', 'fa-credit-card') }}
+                        {{ api_key_row('RAZORPAY_KEY_SECRET', 'Razorpay Secret (Legacy)', 'Legacy payment secret', 'fa-lock') }}
+                        {{ api_key_row('GOOGLE_CLIENT_ID', 'Google Client ID', 'OAuth Client ID', 'fa-brands fa-google') }}
+                        {{ api_key_row('GOOGLE_CLIENT_SECRET', 'Google Client Secret', 'OAuth Client Secret', 'fa-lock') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEO Settings -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-magnifying-glass mr-3 text-primary"></i>
+                SEO Settings
+            </h3>
+        </div>
+        <div class="p-6 space-y-6">
+            <div>
+                <label for="seo_home_title" class="block text-sm font-medium text-foreground mb-2">
+                    Homepage Title
+                </label>
+                <input type="text" 
+                       name="seo_home_title" 
+                       id="seo_home_title" 
+                       value="{{ settings.get('seo_home_title', '') }}" 
+                       class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                       placeholder="Enter SEO title for homepage">
+            </div>
+            <div>
+                <label for="seo_home_description" class="block text-sm font-medium text-foreground mb-2">
+                    Homepage Description
+                </label>
+                <textarea name="seo_home_description" 
+                          id="seo_home_description" 
+                          class="w-full bg-background border border-input rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+                          rows="2"
+                          placeholder="Enter meta description for homepage">{{ settings.get('seo_home_description', '') }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border">
+        <div>
+            <p class="font-semibold text-foreground">Ready to save?</p>
+            <p class="text-sm text-muted-foreground">All changes will be applied immediately</p>
+        </div>
+        <button type="submit" class="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg whitespace-nowrap">
+            <i class="fa-solid fa-floppy-disk mr-2"></i>
+            Save All Settings
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle checkbox hidden input logic
+    const checkboxes = document.querySelectorAll('input[type="checkbox"].sr-only.peer');
+    checkboxes.forEach(checkbox => {
+        const hiddenInput = checkbox.closest('label').querySelector('input[type="hidden"]');
+        if (hiddenInput) {
+            checkbox.addEventListener('change', function() {
+                hiddenInput.disabled = this.checked;
+            });
+            hiddenInput.disabled = checkbox.checked;
+        }
+    });
+});
+</script>
+{% endblock %}

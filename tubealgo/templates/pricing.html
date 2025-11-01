@@ -1,0 +1,268 @@
+{% extends "layout.html" %}
+{% block title %}Pricing & Plans - TubeAlgo{% endblock %}
+
+{% block content %}
+<div class="py-16 sm:py-24">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold text-foreground font-display">Simple, Transparent Pricing</h1>
+            <p class="text-xl text-muted-foreground mt-4 max-w-2xl mx-auto">Choose the plan that's right for your channel's growth journey.</p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
+
+            {# Free Plan Card #}
+            <div class="bg-card p-8 rounded-xl border shadow-sm flex flex-col">
+                <h3 class="text-2xl font-bold">Free</h3>
+                <p class="text-muted-foreground mt-2 h-12">For new creators getting started.</p>
+                <div class="my-6"><span class="text-5xl font-extrabold">₹0</span><span class="text-muted-foreground">/month</span></div>
+                <ul class="space-y-4 text-muted-foreground flex-grow">
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>2 Competitors</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>5 Keyword Searches/day</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>3 AI Generations/day</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>3 AI Playlist Ideas</li>
+                </ul>
+                <a href="{{ url_for('auth_local.signup') }}" class="mt-8 block w-full text-center bg-secondary text-secondary-foreground py-3.5 rounded-lg font-semibold hover:bg-border text-base transition-transform hover:scale-105">Get Started</a>
+            </div>
+
+            {# Paid Plan Cards (Loop) #}
+            {% for plan in plans %}
+            <div class="bg-card p-8 rounded-xl border-2 flex flex-col relative {% if plan.is_popular %}border-primary shadow-lg{% else %}border-border{% endif %}">
+                {% if plan.is_popular %}
+                <div class="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2"><span class="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase">Most Popular</span></div>
+                {% endif %}
+                <h3 class="text-2xl font-bold {% if plan.is_popular %}text-primary{% endif %}">{{ plan.name }}</h3>
+                <p class="text-muted-foreground mt-2 h-12">
+                    {% if plan.plan_id == 'creator' %}For creators ready to grow faster.
+                    {% elif plan.plan_id == 'pro' %}For professionals and agencies.
+                    {% endif %}
+                </p>
+                <div class="my-6">
+                    <span class="text-5xl font-extrabold">₹{{ (plan.price / 100)|int }}</span>
+                    {% if plan.slashed_price %}
+                         <span class="text-xl line-through text-muted-foreground ml-2">₹{{ (plan.slashed_price / 100)|int }}</span>
+                    {% endif %}
+                    <span class="text-muted-foreground">/month</span>
+                </div>
+                <ul class="space-y-4 text-muted-foreground flex-grow">
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>{{ plan.competitors_limit if plan.competitors_limit != -1 else 'Unlimited' }} Competitors</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>{{ plan.keyword_searches_limit if plan.keyword_searches_limit != -1 else 'Unlimited' }} Searches/day</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>{{ plan.ai_generations_limit if plan.ai_generations_limit != -1 else 'Unlimited' }} AI Generations/day</li>
+                    <li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>{{ plan.playlist_suggestions_limit if plan.playlist_suggestions_limit != -1 else 'Unlimited' }} AI Playlist Ideas</li>
+                    {% if plan.has_ai_suggestions %}<li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>AI Video Suggestions</li>{% endif %}
+                    {% if plan.has_discover_tools %}<li class="flex items-center"><i class="fa-solid fa-check text-green-500 mr-3"></i>Discover Tools</li>{% endif %}
+                </ul>
+                <button
+                    data-plan-id="{{ plan.plan_id }}"
+                    class="payment-btn mt-8 w-full text-center py-3.5 rounded-lg font-semibold text-base transition-transform hover:scale-105
+                            {% if plan.is_popular %}bg-primary text-primary-foreground hover:bg-primary/90
+                           {% else %}bg-secondary text-secondary-foreground hover:bg-border
+                           {% endif %}">
+                    Upgrade Now
+                </button>
+            </div>
+            {% endfor %}
+
+        </div>
+    </div>
+</div>
+
+{# Phone Number Modal #}
+<div id="phone-modal" style="display: none;" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4">
+        <div class="p-5 border-b">
+            <h3 class="text-lg font-bold text-foreground">Confirm Your Phone Number</h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label for="phone_number_input" class="font-medium text-sm text-foreground">Enter 10-digit mobile number</label>
+                <input type="tel" id="phone_number_input" maxlength="10" pattern="[0-9]{10}" class="mt-1 block w-full bg-background border border-input rounded-lg p-3 text-sm" placeholder="e.g., 9876543210">
+                <p id="phone-error" class="text-xs text-destructive mt-1" style="display: none;"></p>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+            <button type="button" id="cancel-payment-btn" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+            <button type="button" id="proceed-payment-btn" class="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">Proceed to Pay</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('💳 Payment system initializing...');
+    
+    // Get all required elements
+    const paymentButtons = document.querySelectorAll('.payment-btn');
+    const modal = document.getElementById('phone-modal');
+    const phoneInput = document.getElementById('phone_number_input');
+    const proceedBtn = document.getElementById('proceed-payment-btn');
+    const cancelBtn = document.getElementById('cancel-payment-btn');
+    const phoneError = document.getElementById('phone-error');
+
+    // Get user data from Flask template
+    const USER_PHONE_NUMBER = '{{ current_user.phone_number if current_user.is_authenticated else "" }}';
+    const IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
+    const CSRF_TOKEN = '{{ form.csrf_token._value() }}';
+    const CASHFREE_ENV = '{{ config.CASHFREE_ENV or "PROD" }}';
+
+    console.log('✓ Is Authenticated:', IS_AUTHENTICATED);
+    console.log('✓ Has Phone:', !!USER_PHONE_NUMBER);
+    console.log('✓ Environment:', CASHFREE_ENV);
+
+    let selectedPlanId = null;
+    let originalButton = null;
+
+    // Main payment initiation function
+    async function initiatePayment(planId, phoneNumber, buttonElement) {
+        console.log('🚀 Initiating payment for plan:', planId);
+        
+        // Update button state
+        const originalHTML = buttonElement.innerHTML;
+        buttonElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Processing...';
+        buttonElement.disabled = true;
+
+        try {
+            // Step 1: Create Cashfree order
+            console.log('📝 Creating order...');
+            const orderResponse = await fetch("{{ url_for('payment.create_cashfree_order') }}", {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': CSRF_TOKEN 
+                },
+                body: JSON.stringify({ 
+                    plan: planId, 
+                    phone_number: phoneNumber 
+                })
+            });
+
+            const orderData = await orderResponse.json();
+            
+            if (!orderResponse.ok) {
+                throw new Error(orderData.error || 'Failed to create order on server');
+            }
+
+            if (!orderData.payment_session_id) {
+                throw new Error('Invalid response: Missing payment_session_id');
+            }
+
+            console.log('✓ Order created:', orderData.order_id);
+
+            // Step 2: Initialize Cashfree SDK
+            console.log('🔧 Initializing Cashfree SDK...');
+            const cashfree = Cashfree({
+                mode: CASHFREE_ENV === 'PROD' ? 'production' : 'sandbox'
+            });
+
+            // Step 3: Start checkout
+            console.log('💰 Starting Cashfree checkout...');
+            const checkoutOptions = {
+                paymentSessionId: orderData.payment_session_id,
+                returnUrl: "{{ url_for('payment.cashfree_verification', _external=True) }}?order_id=" + orderData.order_id,
+                redirectTarget: "_self"
+            };
+
+            await cashfree.checkout(checkoutOptions);
+            
+            // If we reach here without redirect, something went wrong
+            console.warn('⚠️ Checkout initiated but no redirect occurred');
+
+        } catch (error) {
+            console.error('❌ Payment error:', error);
+            alert('Payment failed: ' + error.message);
+            
+            // Restore button state
+            buttonElement.innerHTML = originalHTML;
+            buttonElement.disabled = false;
+        }
+    }
+
+    // Validate phone number
+    function isValidPhone(phone) {
+        return /^\d{10}$/.test(phone);
+    }
+
+    // Add click listeners to all payment buttons
+    paymentButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🖱️ Payment button clicked');
+
+            // Check authentication
+            if (!IS_AUTHENTICATED) {
+                console.log('👤 User not authenticated, redirecting to signup');
+                window.location.href = "{{ url_for('auth_local.signup') }}";
+                return;
+            }
+
+            const planId = this.dataset.planId;
+            console.log('📦 Selected plan:', planId);
+            
+            // Check if we have a valid phone number
+            if (USER_PHONE_NUMBER && isValidPhone(USER_PHONE_NUMBER)) {
+                console.log('✓ Using saved phone number');
+                initiatePayment(planId, USER_PHONE_NUMBER, this);
+            } else {
+                console.log('📱 Requesting phone number');
+                selectedPlanId = planId;
+                originalButton = this;
+                phoneInput.value = '';
+                phoneError.style.display = 'none';
+                modal.style.display = 'flex';
+                phoneInput.focus();
+            }
+        });
+    });
+
+    // Modal cancel button
+    cancelBtn.addEventListener('click', () => {
+        console.log('❌ Payment cancelled by user');
+        modal.style.display = 'none';
+        selectedPlanId = null;
+        originalButton = null;
+    });
+
+    // Modal proceed button
+    proceedBtn.addEventListener('click', () => {
+        const phoneNumber = phoneInput.value.trim();
+        console.log('✓ Phone number submitted');
+
+        // Validate
+        if (!isValidPhone(phoneNumber)) {
+            phoneError.innerText = 'Please enter a valid 10-digit mobile number.';
+            phoneError.style.display = 'block';
+            phoneInput.focus();
+            return;
+        }
+
+        // Hide modal and proceed
+        phoneError.style.display = 'none';
+        modal.style.display = 'none';
+
+        if (selectedPlanId && originalButton) {
+            initiatePayment(selectedPlanId, phoneNumber, originalButton);
+        } else {
+            console.error('❌ Plan ID or button reference lost');
+            alert('An error occurred. Please try again.');
+        }
+    });
+
+    // Enter key support on phone input
+    phoneInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            proceedBtn.click();
+        }
+    });
+
+    // Click outside modal to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            cancelBtn.click();
+        }
+    });
+
+    console.log('✅ Payment system initialized successfully');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-7xl mx-auto" x-data="{
+    copyToClipboard(text, btn) {
+        if (!text || text.trim() === '') return;
+        navigator.clipboard.writeText(text.trim()).then(() => {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class='fa-solid fa-check'></i> Copied!`;
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 2000);
+        });
+    }
+}">
+    <div class="mb-6 space-y-4">
+        <a href="{{ request.referrer or url_for('competitor.competitors') }}" class="text-sm font-medium text-primary hover:underline">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back
+        </a>
+        <form method="POST" action="{{ url_for('tool.video_analyzer') }}" class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-grow">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-magnifying-glass text-muted-foreground"></i>
+                </div>
+                <input type="text" name="video_url" class="block w-full bg-card border border-input rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Analyze another video by URL or ID..." required>
+            </div>
+            <button type="submit" class="bg-primary text-primary-foreground px-5 py-3 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors">
+                Analyze
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        <div class="lg:col-span-3 space-y-6">
+            <div class="bg-card p-6 rounded-xl border shadow-sm">
+                <div class="flex justify-between items-start gap-4">
+                    <div class="flex items-start gap-3">
+                        <img src="{{ url_for('static', filename='img/yt_icon_red_digital.png') }}" alt="YouTube Icon" class="youtube-icon-compliant mt-1 flex-shrink-0" style="width: 29px; height: 24px; margin: 0;">
+                        <h1 x-ref="title" class="text-2xl font-bold text-foreground font-display">{{ video.title }}</h1>
+                    </div>
+                    <button @click="copyToClipboard($refs.title.innerText, $el)" class="flex-shrink-0 text-xs bg-secondary font-semibold p-2 rounded-full hover:bg-border" title="Copy Title">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-card rounded-xl border shadow-sm overflow-hidden">
+                <div class="relative">
+                    <img src="{{ video.thumbnail_url }}" alt="Video Thumbnail" class="w-full aspect-video object-cover">
+                    </div>
+            </div>
+
+            <div class="bg-card p-6 rounded-xl border shadow-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold font-display">Description</h2>
+                    <button @click="copyToClipboard($refs.description.innerText, $el)" class="text-xs bg-secondary font-semibold px-3 py-1 rounded-full hover:bg-border">Copy</button>
+                </div>
+                <div x-ref="description" class="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">{{ video.description }}</div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-card p-4 rounded-xl border text-center"><p class="text-sm text-muted-foreground">Views</p><p class="text-2xl font-bold">{{ "{:,.0f}".format(video.views) }}</p></div>
+                <div class="bg-card p-4 rounded-xl border text-center"><p class="text-sm text-muted-foreground">Likes</p><p class="text-2xl font-bold">{{ "{:,.0f}".format(video.likes) }}</p></div>
+                <div class="bg-card p-4 rounded-xl border text-center"><p class="text-sm text-muted-foreground">Comments</p><p class="text-2xl font-bold">{{ "{:,.0f}".format(video.comments) }}</p></div>
+            </div>
+
+            <div class="bg-card p-4 rounded-xl border text-sm space-y-2 text-muted-foreground">
+                <div class="flex justify-between"><span>Upload Date:</span><span class="font-semibold text-foreground">{{ video.upload_date_str }}</span></div>
+                <div class="flex justify-between"><span>Days Since Upload:</span><span class="font-semibold text-foreground">{{ video.days_since_upload }}</span></div>
+                <div class="flex justify-between"><span>Duration:</span><span class="font-semibold text-foreground">{{ video.duration_str }}</span></div>
+            </div>
+
+            <div class="bg-card p-6 rounded-xl border">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-lg font-bold font-display">Tags</h3>
+                    <button @click="copyToClipboard('{{ video.tags|join(', ') }}', $el)" class="text-xs bg-secondary font-semibold px-3 py-1 rounded-full hover:bg-border">Copy All</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag in video.tags %}<span class="bg-secondary text-secondary-foreground text-sm font-semibold px-3 py-1.5 rounded-lg border border-border">{{ tag }}</span>{% else %}<p class="text-sm text-muted-foreground">No tags found.</p>{% endfor %}
+                </div>
+            </div>
+
+            {% if video.hashtags %}
+            <div class="bg-card p-6 rounded-xl border">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-lg font-bold font-display">Hashtags in Description</h3>
+                    <button @click="copyToClipboard('{% if video.hashtags %}#{{ video.hashtags|join(' #') }}{% endif %}', $el)" class="text-xs bg-secondary font-semibold px-3 py-1 rounded-full hover:bg-border">Copy All</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag in video.hashtags %}<span class="bg-blue-500/10 text-blue-700 text-sm font-semibold px-3 py-1.5 rounded-lg">#{{ tag }}</span>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,396 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<script type="application/json" id="competitors-data">
+    {{ competitors_json | safe }}
+</script>
+
+<div class="max-w-7xl mx-auto" x-data="competitorPage()" @analyze-transcript.window="analyzeTranscript($event.detail.video)">
+
+    {# Loading overlay for adding competitor #}
+    <div x-show="isAdding" x-transition:enter="ease-out duration-300" x-transition:leave="ease-in duration-200" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center" x-cloak>
+        <div class="bg-card rounded-lg p-8 text-center shadow-2xl">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-primary"></i>
+             <p class="mt-4 font-semibold text-foreground">Adding Competitor...</p>
+        </div>
+    </div>
+
+    {# Page Header #}
+    <div class="text-center mb-12">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 bg-brand-orange/10 text-brand-orange">
+            <i class="fa-solid fa-users text-3xl"></i>
+        </div>
+        <h1 class="text-4xl font-bold text-foreground font-display">Competitor Analysis</h1>
+        <p class="text-lg text-muted-foreground mt-2">Add and track your competitors to analyze their performance.</p>
+    </div>
+
+    {# Add Competitor Form Section #}
+    <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm mb-12" @click.away="showSuggestions = false">
+
+        {# Flash Messages Section #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category.startswith('warning-') %}
+                         {# Hidden warning data (if needed by JS) #}
+                         <div class="flash-warning hidden" data-channel-id="{{ category.split('-')[1] }}">{{ message }}</div>
+                        {# Visible warning message #}
+                        <div class="mb-4 p-4 text-sm rounded-lg bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">{{ message }}</div>
+                    {% elif category == 'success' %}
+                        <div class="mb-4 p-4 text-sm rounded-lg bg-primary/10 text-primary">{{ message }}</div>
+                    {% else %} {# Default to error style #}
+                        <div class="mb-4 p-4 text-sm rounded-lg bg-destructive/10 text-destructive">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {# Form Header with Usage Limit #}
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-foreground flex items-center">
+                <i class="fa-solid fa-user-plus mr-3 text-brand-green"></i> Add a New Competitor
+            </h2>
+             <div class="text-sm font-semibold text-muted-foreground">
+                Usage: <span class="text-foreground" x-text="competitors.length"></span> / <span class="text-foreground" x-text="limit === -1 ? 'Unlimited' : limit"></span>
+            </div>
+        </div>
+
+        {# Limit Reached Message #}
+        <template x-if="limitReached">
+           <div class="p-4 text-center bg-yellow-400/10 text-yellow-700 rounded-lg border border-yellow-400/20">
+                 <p class="font-semibold">You have reached your competitor limit.</p>
+                <p class="text-sm">Please <a href="{{ url_for('core.pricing') }}" class="font-bold underline">upgrade your plan</a> to add more competitors.</p>
+            </div>
+        </template>
+
+        {# The Form Itself #}
+        <form id="add-competitor-form" x-ref="addCompetitorForm" @submit.prevent="handleAddCompetitor" action="{{ url_for('competitor.add_competitor') }}" class="relative" x-show="!limitReached">
+            {{ form.csrf_token }} {# Renders the CSRF hidden input #}
+            <div class="flex flex-col sm:flex-row gap-2">
+                 <input type="text" name="channel_url"
+                     class="flex-grow bg-background border border-input rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+                       placeholder="Enter competitor's channel name or URL" required autocomplete="off"
+                       x-model="query"
+                       @input.debounce.300ms="fetchSuggestions()"
+                       @keydown="handleKeydown($event)"
+                       @keydown.escape.window="showSuggestions = false">
+
+                <input type="hidden" name="channel_id_hidden" x-ref="hiddenIdInput"> {# Hidden input for selected channel ID #}
+
+                 <button type="submit" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center w-40" :disabled="isAdding">
+                    <span x-show="isAdding"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Adding...</span>
+                     <span x-show="!isAdding">Add Competitor</span>
+                </button>
+            </div>
+
+            {# Display form errors from JavaScript #}
+             <p x-show="formError" x-text="formError" class="text-sm text-destructive mt-2" x-transition></p>
+
+            {# Suggestions Dropdown #}
+            <div x-show="showSuggestions" x-transition class="absolute top-full mt-2 w-full sm:w-auto sm:min-w-[50%] bg-card border rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto" x-cloak>
+                <div x-show="loading" class="p-4 text-center text-muted-foreground flex items-center justify-center"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading...</div>
+                <template x-if="!loading && suggestions.length > 0">
+                     <ul>
+                        <template x-for="(channel, index) in suggestions" :key="channel.channel_id">
+                            <li @click="selectSuggestion(channel)" class="p-3 flex items-center gap-3 cursor-pointer hover:bg-secondary" :class="{ 'bg-primary/10': activeIndex === index }">
+                                 <img :src="channel.thumbnail" class="w-8 h-8 rounded-full">
+                                <span class="text-sm font-medium" x-text="channel.title"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </template>
+                {# Message when no suggestions found #}
+                <div x-show="!loading && suggestions.length === 0 && query.length >= 3" class="p-4 text-center text-muted-foreground text-sm">No channels found.</div>
+            </div>
+        </form>
+    </div>
+
+    {# Competitor List Section #}
+    <div>
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+             <h2 class="text-3xl font-bold text-foreground font-display">Your Tracked Competitors</h2>
+            {# Telegram Alert Status/Link #}
+            <a href="{{ url_for('settings.telegram_settings') }}" class="mt-2 sm:mt-0">
+                {% if current_user.telegram_chat_id %}
+                    <span class="inline-flex items-center gap-2 text-xs font-semibold bg-green-500/10 text-green-700 px-3 py-1.5 rounded-full"><i class="fa-solid fa-bell"></i> Alerts ON</span>
+                 {% else %}
+                     <span class="inline-flex items-center gap-2 text-xs font-semibold bg-gray-500/10 text-gray-700 px-3 py-1.5 rounded-full hover:bg-gray-500/20"><i class="fa-brands fa-telegram"></i> Get Alerts on Telegram</span>
+                {% endif %}
+            </a>
+        </div>
+
+        {# Competitor Cards Area #}
+        <div class="space-y-8" id="competitor-list">
+            {# Loop through competitors using Alpine #}
+            <template x-if="competitors.length > 0">
+                <template x-for="(competitor, index) in competitors" :key="competitor.id">
+                    <div class="bg-card p-4 sm:p-6 rounded-xl border shadow-sm transition-all" :id="`competitor-card-${competitor.channel_id_youtube}`" x-data="competitorCard(competitor)">
+                        {# Loading State Placeholder #}
+                        <template x-if="isLoading">
+                             {% include 'partials/_competitor_card_loader.html' %}
+                        </template>
+                        {# Error State #}
+                        <template x-if="error">
+                             <div class="text-center p-8 text-destructive"><i class="fa-solid fa-circle-exclamation text-4xl mb-2"></i><p class="font-semibold" x-text="`Could not load data for ${competitor.channel_title}`"></p><p class="text-sm" x-text="error"></p></div>
+                        </template>
+                        {# Data Loaded State #}
+                        <template x-if="!isLoading && data">
+                             <div class="relative">
+                                {# Refreshing Overlay #}
+                                 <div x-show="isRefreshing" x-transition class="absolute inset-0 bg-card/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl"><div class="text-center"><i class="fa-solid fa-spinner fa-spin text-3xl text-primary"></i><p class="mt-2 font-semibold">Fetching new data...</p></div></div>
+
+                                    {# Main Card Grid #}
+                                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                                        {# Left Column (Channel Info & Stats) #}
+                                        <div class="lg:col-span-2 flex flex-col items-center text-center">
+                                             <img :src="data.details['Thumbnail URL']" alt="Thumbnail" class="w-24 h-24 rounded-full border-4 border-secondary flex-shrink-0 shadow-md">
+                                             <h3 class="mt-4 text-xl font-bold text-foreground" x-text="data.details.Title"></h3>
+                                             <span class="text-sm font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full mt-2 inline-block" x-text="`🎬 ${data.category || 'N/A'}`"></span>
+
+                                             {# Stat Boxes #}
+                                             <div class="mt-6 w-full space-y-2">
+                                                 <div class="bg-secondary p-2 rounded-lg border text-left">
+                                                     <p class="text-[10px] text-muted-foreground font-bold">SUBSCRIBERS</p>
+                                                    <p class="text-lg font-bold text-foreground" x-text="Number(data.details.Subscribers).toLocaleString()"></p>
+                                                 </div>
+                                                <div class="bg-secondary p-2 rounded-lg border text-left">
+                                                     <p class="text-[10px] text-muted-foreground font-bold">TOTAL VIEWS</p>
+                                                    <p class="text-lg font-bold text-foreground" x-text="Number(data.details['Total Views']).toLocaleString()"></p>
+                                                 </div>
+                                                 <div class="bg-secondary p-2 rounded-lg border text-left">
+                                                     <p class="text-[10px] text-muted-foreground font-bold">VIDEOS</p>
+                                                     <p class="text-lg font-bold text-foreground" x-text="Number(data.details['Video Count']).toLocaleString()"></p>
+                                                </div>
+                                            </div>
+
+                                         </div>
+
+                                         {# Right Column (Videos) #}
+                                        <div class="lg:col-span-10 lg:border-l lg:border-border lg:pl-6 flex flex-col">
+
+                                             {# Videos Header & Actions #}
+                                            <div class="flex items-center justify-between mb-4">
+                                                 <span class="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+                                                     <img src="{{ url_for('static', filename='img/yt_icon_red_digital.png') }}" alt="YouTube Icon" class="youtube-icon-compliant" style="width: 29px; height: 24px; margin: 0;">
+                                                    Competitor Videos
+                                                </span>
+                                                 <div class="flex items-center gap-2">
+                                                     <button type="button" @click="$dispatch('go-to-analysis', { data: data, competitor: competitor })" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm">
+                                                         <i class="fa-solid fa-chart-pie"></i>
+                                                         <span>Deep Analysis</span>
+                                                     </button>
+                                                     {# Actions Dropdown #}
+                                                     <div x-data="{ dropdownOpen: false }" class="relative" @click.away="dropdownOpen = false">
+                                                          <button @click="dropdownOpen = !dropdownOpen" class="w-10 h-10 flex items-center justify-center rounded-lg bg-secondary hover:bg-border transition-colors">
+                                                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                                                         </button>
+                                                        <div x-show="dropdownOpen" x-transition class="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg z-20 border py-1">
+                                                             <button @click="refreshData(); dropdownOpen = false;" :disabled="isRefreshed || isRefreshing" class="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-primary disabled:opacity-50">
+                                                                 <i class="fa-solid fa-arrows-rotate fa-fw"></i>
+                                                                <span>Refresh Data</span>
+                                                            </button>
+                                                             <button @click="$dispatch('confirm-delete', competitor.id); dropdownOpen = false;" class="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-destructive/10">
+                                                                <i class="fa-solid fa-trash-can fa-fw"></i>
+                                                                <span>Delete</span>
+                                                             </button>
+                                                            <hr class="my-1 border-border">
+                                                             <button @click="$dispatch('move-competitor', { id: competitor.id, direction: 'up' }); dropdownOpen = false;" :disabled="index === 0" class="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-primary disabled:opacity-25">
+                                                                 <i class="fa-solid fa-arrow-up fa-fw"></i>
+                                                                <span>Move Up</span>
+                                                             </button>
+                                                             <button @click="$dispatch('move-competitor', { id: competitor.id, direction: 'down' }); dropdownOpen = false;" :disabled="index === competitors.length - 1" class="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-primary disabled:opacity-25">
+                                                                <i class="fa-solid fa-arrow-down fa-fw"></i>
+                                                                <span>Move Down</span>
+                                                             </button>
+                                                        </div>
+                                                     </div>
+                                                    {# Hidden form for deletion #}
+                                                    <form method="POST" :action="'{{ url_for('competitor.delete_competitor', competitor_id=0) }}'.replace('0', competitor.id)" :id="`delete-form-${competitor.id}`" class="hidden"><input type="hidden" name="csrf_token" value="{{ form.csrf_token._value() }}"></form>
+                                                 </div>
+                                            </div>
+
+                                            {# Sort & Filter Controls #}
+                                             <div class="space-y-3">
+                                                {# Sort By #}
+                                                <div class="flex items-center gap-2">
+                                                     <span class="text-xs font-semibold text-muted-foreground w-16 text-right">Sort by:</span>
+                                                    <div class="flex items-center gap-1 bg-secondary p-1 rounded-lg border flex-1">
+                                                         <button @click="activeSort = 'date'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeSort === 'date', 'text-muted-foreground hover:bg-border': activeSort !== 'date' }">Recent</button>
+                                                         <button @click="activeSort = 'viewCount'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeSort === 'viewCount', 'text-muted-foreground hover:bg-border': activeSort !== 'viewCount' }">Viewed</button>
+                                                         <button @click="activeSort = 'most_comments'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeSort === 'most_comments', 'text-muted-foreground hover:bg-border': activeSort !== 'most_comments' }">Comments</button>
+                                                    </div>
+                                                 </div>
+                                                {# Filter By #}
+                                                <div class="flex items-center gap-2">
+                                                     <span class="text-xs font-semibold text-muted-foreground w-16 text-right">Filter by:</span>
+                                                    <div class="flex items-center gap-1 bg-secondary p-1 rounded-lg border flex-1">
+                                                         <button @click="activeFilter = 'all'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeFilter === 'all', 'text-muted-foreground hover:bg-border': activeFilter !== 'all' }">All</button>
+                                                         <button @click="activeFilter = 'videos'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeFilter === 'videos', 'text-muted-foreground hover:bg-border': activeFilter !== 'videos' }">Videos</button>
+                                                         <button @click="activeFilter = 'shorts'" class="flex-1 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors" :class="{ 'bg-primary text-primary-foreground shadow': activeFilter === 'shorts', 'text-muted-foreground hover:bg-border': activeFilter !== 'shorts' }">Shorts</button>
+                                                    </div>
+                                                 </div>
+                                            </div>
+
+                                            {# Video Grid #}
+                                             <div class="mt-4 flex-grow">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                     {# Include and loop through video card partial #}
+                                                     <template x-for="video in displayedVideos" :key="video.id">
+                                                         {% include 'partials/_video_card_alpine.html' %}
+                                                     </template>
+                                                </div>
+                                                 {# No videos message #}
+                                                 <template x-if="!isLoading && displayedVideos.length === 0">
+                                                     <p class="text-center text-sm text-muted-foreground py-8">No videos found for this filter.</p>
+                                                 </template>
+                                            </div>
+                                        </div>
+                                     </div>
+                             </div>
+                         </template>
+                    </div>
+                </template>
+            </template>
+            {# Message when no competitors are added #}
+            <template x-if="competitors.length === 0">
+                 <div class="text-center mt-8 bg-card p-12 rounded-xl border border-dashed"><div class="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-brand-orange/10 text-brand-orange/50"><i class="fa-solid fa-users-slash text-4xl"></i></div><h3 class="mt-4 text-xl font-semibold text-foreground">No competitors added yet.</h3><p class="text-muted-foreground mt-2">Use the form above to add your first competitor and start tracking.</p></div>
+            </template>
+        </div>
+    </div>
+
+    {# Delete Confirmation Modal #}
+    <div x-show="showConfirmModal" x-transition.opacity class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4" x-cloak>
+         <div @click.away="showConfirmModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 text-center p-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10">
+                 <i class="fa-solid fa-trash-can text-destructive text-xl"></i>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-lg leading-6 font-bold text-foreground">Confirm Deletion</h3>
+                <div class="mt-2">
+                     <p class="text-sm text-muted-foreground">Are you sure you want to delete this competitor? This action cannot be undone.</p>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button @click="showConfirmModal = false" type="button" class="flex-1 inline-flex justify-center rounded-lg shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border">
+                   Cancel
+                </button>
+                <button @click="proceedWithDelete()" type="button" class="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-destructive text-base font-medium text-white hover:bg-destructive/90">
+                    Delete
+                 </button>
+             </div>
+        </div>
+    </div>
+
+    {# Generate Idea Modal #}
+    <div x-show="showIdeaModal" x-transition.opacity class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4" x-cloak>
+        <div @click.away="showIdeaModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex-shrink-0">
+                <h3 class="text-lg font-bold">Generate Your Version</h3>
+                 <p class="text-sm text-muted-foreground">Based on: "<span x-text="ideaSourceTitle"></span>"</p>
+            </div>
+            <div class="p-6 flex-grow overflow-y-auto">
+                 <div x-show="isGeneratingIdeas" class="text-center py-8">
+                    <i class="fa-solid fa-wand-magic-sparkles fa-spin text-4xl text-primary"></i>
+                    <p class="mt-4 font-semibold">AI is crafting unique ideas for you...</p>
+                </div>
+                <div x-show="!isGeneratingIdeas" class="space-y-3">
+                    <template x-for="idea in generatedIdeas" :key="idea.title">
+                         <div class="bg-secondary p-4 rounded-lg hover:border-primary border border-transparent transition-all">
+                            <h4 class="font-bold text-foreground" x-text="idea.title"></h4>
+                            <p class="text-sm text-muted-foreground mt-1" x-text="idea.description"></p>
+                             <button @click="addIdeaToPlanner(idea)" class="mt-3 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-md font-semibold hover:bg-primary/90">
+                                <i class="fa-solid fa-plus mr-1"></i> Add to Planner
+                            </button>
+                        </div>
+                     </template>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# AI Transcript Analysis Modal #}
+    <div x-show="showAnalysisModal" class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4" @keydown.escape.window="closeAnalysisModal()" x-cloak>
+        <div @click.away="closeAnalysisModal()" class="bg-card rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+             <div class="p-4 border-b flex-shrink-0">
+                 <h3 class="text-lg font-bold">AI Transcript Analysis</h3>
+                <p class="text-sm text-muted-foreground truncate" x-text="videoForAnalysis ? videoForAnalysis.title : ''"></p>
+             </div>
+            <div class="p-6 flex-grow overflow-y-auto bg-secondary/50">
+                 <div x-show="analysisLoading" class="text-center py-8">
+                     <i class="fa-solid fa-wand-magic-sparkles fa-spin text-4xl text-primary"></i>
+                    <p class="mt-4 font-semibold">AI is analyzing the transcript...</p>
+                    <p class="mt-2 text-sm text-muted-foreground">This can take up to 30 seconds for long videos.</p>
+                 </div>
+                 <div x-show="analysisError" class="p-4 bg-destructive/10 text-destructive rounded-lg" x-text="analysisError"></div>
+
+                {# *** FIX: Added checks for currentAnalysis *** #}
+                <div x-show="!analysisLoading && currentAnalysis" class="space-y-6">
+                    <div>
+                         <h4 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-file-alt text-blue-500"></i> Summary</h4>
+                         {# Check if currentAnalysis exists before accessing summary #}
+                         <p class="mt-2 text-sm text-muted-foreground" x-text="currentAnalysis ? currentAnalysis.summary : 'Loading...'"></p>
+                    </div>
+                    {# Check if keywords exist and have items #}
+                    <div x-show="currentAnalysis && currentAnalysis.keywords && currentAnalysis.keywords.length > 0">
+                         <h4 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-key text-yellow-500"></i> Main Keywords</h4>
+                         <div class="mt-2 flex flex-wrap gap-2">
+                            <template x-for="keyword in currentAnalysis.keywords" :key="keyword">
+                                 <span class="text-sm font-semibold px-3 py-1.5 rounded-lg border-2 border-secondary bg-card" x-text="keyword"></span>
+                             </template>
+                        </div>
+                    </div>
+                    {# Check if content_gaps exist and have items #}
+                    <div x-show="currentAnalysis && currentAnalysis.content_gaps && currentAnalysis.content_gaps.length > 0">
+                        <h4 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-lightbulb text-green-500"></i> Content Gap Ideas</h4>
+                        <div class="mt-2 space-y-3">
+                            <template x-for="idea in currentAnalysis.content_gaps" :key="idea">
+                                <div class="bg-card p-3 rounded-lg border">
+                                    <p class="text-sm" x-text="idea"></p>
+                                 </div>
+                            </template>
+                         </div>
+                    </div>
+                    {# Message if analysis ran but found nothing #}
+                    <p x-show="currentAnalysis && (!currentAnalysis.keywords || currentAnalysis.keywords.length === 0) && (!currentAnalysis.content_gaps || currentAnalysis.content_gaps.length === 0)" class="text-sm text-muted-foreground">AI could not extract keywords or content gaps from this transcript.</p>
+                 </div>
+                 {# *** END FIX *** #}
+            </div>
+            <div class="px-6 py-4 border-t flex justify-end">
+                <button @click="closeAnalysisModal()" class="bg-secondary px-5 py-2 rounded-lg text-sm font-semibold hover:bg-border">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const COMPETITOR_LIMIT = {{ competitor_limit|tojson }}; // Pass limit from Python
+</script>
+<script src="{{ url_for('static', filename='js/competitors.js') }}"></script>
+
+{# Styles for highlighting cards #}
+<style>
+.highlight-card {
+    transition: all 0.5s ease-in-out;
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.7);
+}
+.flash-warning {
+    display: none; /* Hidden data for JS */
+}
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 hsl(var(--primary) / 0.7);
+        border-color: hsl(var(--primary) / 0.5);
+    }
+     50% {
+        box-shadow: 0 0 20px 8px hsl(var(--primary) / 0.2);
+        border-color: hsl(var(--primary));
+    }
+}
+.animate-pulse-glow {
+    animation: pulse-glow 2s infinite;
+}
+</style>
+
+{% endblock %}

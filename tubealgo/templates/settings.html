@@ -1,0 +1,96 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-foreground font-display">Settings</h1>
+        <p class="text-lg text-muted-foreground mt-2">Manage your account and preferences.</p>
+    </div>
+    <div class="space-y-8">
+        <a href="{{ url_for('settings.telegram_settings') }}" class="group block bg-card p-6 rounded-xl border hover:border-primary hover:shadow-lg transition-all">
+            <div class="flex items-center gap-6">
+                <div class="w-12 h-12 flex-shrink-0 rounded-lg flex items-center justify-center bg-brand-cyan/10 text-brand-cyan">
+                    <i class="fa-brands fa-telegram text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-foreground">Telegram Notifications</h2>
+                    <p class="text-muted-foreground mt-1">Manage your real-time competitor alerts and weekly reports.</p>
+                </div>
+                <div class="ml-auto">
+                    <i class="fa-solid fa-arrow-right text-muted-foreground group-hover:text-primary transition-colors"></i>
+                </div>
+            </div>
+        </a>
+
+        <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+            <h2 class="text-2xl font-bold text-foreground mb-4">Localization</h2>
+            <form method="POST" action="{{ url_for('settings.settings') }}">
+                {{ form.csrf_token }}
+                <div>
+                    <label for="timezone" class="font-medium text-foreground">Your Timezone:</label>
+                    <p class="text-sm text-muted-foreground mb-2">This will adjust all dates and times across the app to your local time.</p>
+                    <select name="timezone" id="timezone" class="mt-1 w-full bg-background border border-input rounded-lg px-4 py-2">
+                        {% for tz in all_timezones %}
+                            <option value="{{ tz }}" {% if tz == current_user.timezone %}selected{% endif %}>{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="text-right mt-4">
+                    <button type="submit" name="action" value="update_timezone" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Save Timezone</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+            <h2 class="text-2xl font-bold text-foreground mb-4">Account Information</h2>
+            <form method="POST" action="{{ url_for('settings.settings') }}">
+                {{ form.csrf_token }}
+                <div>
+                    <label for="phone_number" class="font-medium text-foreground">Phone Number:</label>
+                    <p class="text-sm text-muted-foreground mb-2">This is required for payment processing.</p>
+                    <input type="text" name="phone_number" id="phone_number" class="mt-1 w-full bg-background border border-input rounded-lg px-4 py-2" value="{{ current_user.phone_number or '' }}" placeholder="Enter your 10-digit phone number" required>
+                </div>
+                <div class="text-right mt-4">
+                    <button type="submit" name="action" value="update_phone" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Save Phone Number</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+            <h2 class="text-2xl font-bold text-foreground mb-4">Default Description Details</h2>
+            <p class="text-muted-foreground mb-6">Save your common details here to automatically include them in AI-generated descriptions.</p>
+            <form method="POST" action="{{ url_for('settings.settings') }}" class="space-y-4">
+                {{ form.csrf_token }}
+                <div>
+                    <label for="channel_name" class="font-medium text-foreground">Your Channel Name:</label>
+                    <input type="text" name="channel_name" id="channel_name" class="mt-1 w-full bg-background border border-input rounded-lg px-4 py-2" value="{{ current_user.default_channel_name or '' }}">
+                </div>
+                <div>
+                    <label for="social_handles" class="font-medium text-foreground">Social Media Links (one per line):</label>
+                    <textarea name="social_handles" id="social_handles" rows="3" class="mt-1 w-full bg-background border border-input rounded-lg px-4 py-2" placeholder="e.g., Instagram: https://instagram.com/yourhandle">{{ current_user.default_social_handles or '' }}</textarea>
+                </div>
+                <div>
+                    <label for="contact_info" class="font-medium text-foreground">Contact / Business Inquiries:</label>
+                    <input type="text" name="contact_info" id="contact_info" class="mt-1 w-full bg-background border border-input rounded-lg px-4 py-2" placeholder="e.g., For business inquiries: contact@yourdomain.com" value="{{ current_user.default_contact_info or '' }}">
+                </div>
+                <div class="text-right">
+                    <button type="submit" name="action" value="update_defaults" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Save Defaults</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-card p-6 sm:p-8 rounded-xl border border-destructive/50 shadow-sm">
+            <h2 class="text-xl font-bold text-destructive">Danger Zone</h2>
+            <p class="text-muted-foreground mt-2">Manage your account data.</p>
+            <div class="mt-4 border-t border-border pt-4">
+                <form action="{{ url_for('settings.request_data_deletion') }}" method="POST" onsubmit="return confirm('Are you sure you want to request the deletion of all your stored data? This action cannot be undone.');">
+                    <button type="submit" class="bg-destructive text-destructive-foreground px-5 py-2 rounded-lg font-semibold text-sm">
+                        Request Data Deletion
+                    </button>
+                </form>
+                <p class="text-xs text-muted-foreground mt-2">This will send a request to our team to delete all data associated with your account, including connected channels and competitor data.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

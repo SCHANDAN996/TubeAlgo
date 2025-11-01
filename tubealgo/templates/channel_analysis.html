@@ -1,0 +1,49 @@
+{% extends "app_layout.html" %}
+{% block title %}Analysis: {{ channel_data.Title }}{% endblock %}
+
+{% block app_content %}
+<div class="max-w-6xl mx-auto space-y-8">
+    <div class="bg-card p-6 rounded-xl border shadow-sm">
+        <div class="flex flex-col sm:flex-row items-center gap-6">
+            <img src="{{ channel_data['Thumbnail URL'] }}" alt="Channel Thumbnail" class="w-24 h-24 rounded-full border-4 border-secondary">
+            <div class="flex-grow text-center sm:text-left">
+                <h1 class="text-3xl font-bold text-foreground">{{ channel_data.Title }}</h1>
+                <div class="flex justify-center sm:justify-start flex-wrap gap-4 sm:gap-6 mt-2 text-muted-foreground">
+                    <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data.Subscribers) }}</strong> Subs</span>
+                    <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data['Total Views']) }}</strong> Views</span>
+                    <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data['Video Count']) }}</strong> Videos</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-card p-6 rounded-xl border shadow-sm">
+        <h2 class="text-2xl font-bold text-foreground mb-4">Most Used Tags</h2>
+        <div class="flex flex-wrap gap-2">
+            {% if top_tags %}
+                {% for tag, count in top_tags %}
+                <span class="bg-secondary text-secondary-foreground text-sm font-medium px-3 py-1 rounded-full">{{ tag }} ({{count}})</span>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted-foreground">No significant tags found in recent videos.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-card p-6 rounded-xl border shadow-sm">
+        <h2 class="text-2xl font-bold text-foreground mb-4">Recent Videos</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {% if recent_videos %}
+            {% for video in recent_videos %}
+            <a href="{{ url_for('competitor.video_analysis', video_id=video.id) }}" class="group block">
+                <img src="{{ video.thumbnail }}" alt="{{ video.title }}" class="rounded-lg mb-2 w-full aspect-video object-cover">
+                <h4 class="font-medium text-sm group-hover:text-primary">{{ video.title }}</h4>
+            </a>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted-foreground col-span-full">Could not fetch recent videos for this channel.</p>
+        {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

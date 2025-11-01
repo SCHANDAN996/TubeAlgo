@@ -1,0 +1,32 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}API Permissions{% endblock %}
+{% block header_title %}Google API Permissions{% endblock %}
+
+{% block content %}
+<form method="POST">
+    <div class="bg-card p-6 rounded-lg border">
+        <h3 class="text-lg font-semibold border-b pb-2 mb-4">Manage Google API Scopes</h3>
+        <p class="text-sm text-muted-foreground mb-4">
+            Select which permissions your application will request from users. Changes will apply the next time a user connects their account or is asked to re-authenticate. Disabling a scope may break features that depend on it.
+        </p>
+        <div class="space-y-4">
+            {% for scope in scopes %}
+            <label class="flex items-center justify-between p-4 bg-secondary rounded-lg cursor-pointer">
+                <div>
+                    <p class="font-semibold text-foreground">{{ scope.name }}</p>
+                    <p class="text-sm text-muted-foreground">{{ scope.description }}</p>
+                    <p class="text-xs font-mono text-muted-foreground mt-1">{{ scope.scope_url }}</p>
+                </div>
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="scope_{{ scope.id }}" value="on" class="sr-only peer" {% if scope.is_enabled %}checked{% endif %} {% if 'profile' in scope.scope_url or 'email' in scope.scope_url %}disabled{% endif %}>
+                    <div class="w-11 h-6 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary {% if 'profile' in scope.scope_url or 'email' in scope.scope_url %}opacity-50 cursor-not-allowed{% endif %}"></div>
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="text-right mt-6">
+        <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Save Permissions</button>
+    </div>
+</form>
+{% endblock %}

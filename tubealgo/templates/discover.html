@@ -1,0 +1,36 @@
+{% extends "app_layout.html" %}
+{% block app_content %}
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-foreground font-display">Discover New Channels</h1>
+        <p class="text-lg text-muted-foreground mt-2">Find top trending and similar channels in any niche.</p>
+    </div>
+    <div class="space-y-8">
+        <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+            <h2 class="text-2xl font-bold text-foreground mb-4">Find by Niche</h2>
+            <form method="POST" action="{{ url_for('competitor.discover') }}">
+                <input type="hidden" name="form_type" value="category_search">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <select name="category_id" required class="flex-grow bg-background border border-input rounded-lg px-4 py-2">
+                        <option value="">-- Select a Category --</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.snippet.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Find Channels</button>
+                </div>
+            </form>
+        </div>
+        <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+            <h2 class="text-2xl font-bold text-foreground mb-4">Find Similar Channels</h2>
+            <form method="POST" action="{{ url_for('competitor.discover') }}">
+                <input type="hidden" name="form_type" value="similar_search">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" name="channel_url" class="flex-grow bg-background border border-input rounded-lg px-4 py-2" placeholder="e.g., MrBeast or T-Series" required>
+                    <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Find Similar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

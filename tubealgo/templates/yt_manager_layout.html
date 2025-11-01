@@ -1,0 +1,49 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-7xl mx-auto">
+    {# Compact Centered Header Section #}
+    <div class="flex items-center justify-center gap-6 mb-4">
+        <div class="flex items-center justify-center rounded-lg bg-brand-red/10 text-brand-red p-6">
+            <img src="{{ url_for('static', filename='img/yt_icon_red_digital.png') }}" alt="YouTube Icon" class="youtube-icon-compliant mt-1 flex-shrink-0" style="width: 116px; height: 96px; margin: 0;">
+        </div>
+        <h1 class="text-5xl font-bold text-foreground font-display">YT Manager</h1>
+    </div>
+    {# Tab Navigation #}
+    <div class="border-b border-border mb-4">
+        <nav class="-mb-px flex justify-center space-x-6 overflow-x-auto">
+            <a href="{{ url_for('manager.manage_videos') }}"
+               class="shrink-0 border-b-2 px-1 pb-2 text-sm font-medium whitespace-nowrap
+                      {% if request.endpoint.startswith('manager.') and not request.endpoint.startswith('manager.upload') %}
+                           border-primary text-primary
+                      {% else %}
+                           border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground
+                      {% endif %}">
+                Videos
+            </a>
+
+            <a href="{{ url_for('playlist_manager.manage_playlists') }}"
+               class="shrink-0 border-b-2 px-1 pb-2 text-sm font-medium whitespace-nowrap
+                      {% if request.endpoint.startswith('playlist_manager.') %}
+                        border-primary text-primary
+                      {% else %}
+                        border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground
+                      {% endif %}">
+                Playlists
+            </a>
+
+            <a href="{{ url_for('ab_test.dashboard') }}"
+               class="shrink-0 border-b-2 px-1 pb-2 text-sm font-medium whitespace-nowrap
+                      {% if request.endpoint.startswith('ab_test.') %}
+                        border-primary text-primary
+                      {% else %}
+                        border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground
+                      {% endif %}">
+                A/B Testing
+            </a>
+        </nav>
+    </div>
+
+    {% block manager_content %}{% endblock %}
+</div>
+{% endblock %}

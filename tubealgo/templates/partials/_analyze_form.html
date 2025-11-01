@@ -1,0 +1,7 @@
+<div style="margin-top: 30px;">
+    <h2>Analyze a New Channel</h2>
+    <form method="POST" action="{{ url_for('dashboard.analyze') }}">
+        <input type="text" name="channel_url" size="50" placeholder="e.g., T-Series, @TSeries, or full URL" required>
+        <button type="submit">Analyze</button>
+    </form>
+</div>

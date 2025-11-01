@@ -1,0 +1,32 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Coupons{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-foreground">Manage Coupons</h2>
+    <a href="{{ url_for('admin.create_coupon') }}" class="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium">Add New Coupon</a>
+</div>
+<div class="bg-card rounded-lg border overflow-hidden">
+    <table class="w-full text-left text-sm">
+        <thead class="bg-secondary">
+            <tr>
+                <th class="p-4 font-semibold">Code</th>
+                <th class="p-4 font-semibold">Type</th>
+                <th class="p-4 font-semibold">Value</th>
+                <th class="p-4 font-semibold">Status</th>
+                <th class="p-4 font-semibold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for coupon in coupons %}
+            <tr class="border-t">
+                <td class="p-4">{{ coupon.code }}</td>
+                <td class="p-4 capitalize">{{ coupon.discount_type }}</td>
+                <td class="p-4">{{ coupon.discount_value }}{{ '%' if coupon.discount_type == 'percentage' else '' }}</td>
+                <td class="p-4">{{ 'Active' if coupon.is_active else 'Inactive' }}</td>
+                <td class="p-4"><a href="{{ url_for('admin.edit_coupon', coupon_id=coupon.id) }}" class="text-primary hover:underline">Edit</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

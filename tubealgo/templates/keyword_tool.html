@@ -1,0 +1,161 @@
+{% extends "app_layout.html" %}
+{% block app_content %}
+<div class="max-w-7xl mx-auto">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-foreground font-display">Keyword Research Tool</h1>
+        <p class="text-lg text-muted-foreground mt-2">Find related keywords, analyze competition, and see what's ranking.</p>
+    </div>
+
+    <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm sticky top-20 z-20">
+        <form method="POST" id="keyword-form" class="flex flex-col sm:flex-row gap-2">
+            
+            <!-- === 1. यह लाइन जोड़ें === -->
+            {{ form.hidden_tag() }}
+            <!-- === === -->
+
+            <input type="text" name="keyword" id="keyword-input" class="flex-grow bg-background border border-input rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g., how to grow on youtube" value="{{ keyword or '' }}" required autocomplete="off">
+            <button type="submit" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                <i class="fa-solid fa-search mr-2"></i>Search
+            </button>
+        </form>
+    </div>
+
+    {% if keyword %}
+    <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-card p-6 rounded-xl border">
+                <h3 class="font-bold text-lg mb-2">Competition Score</h3>
+                <div class="text-center">
+                    <p class="text-6xl font-extrabold {{ competition_score.color }}">{{ competition_score.score }}</p>
+                    <p class="text-sm text-muted-foreground mt-2">{{ competition_score.text }}</p>
+                </div>
+            </div>
+            <div class="bg-card p-6 rounded-xl border">
+                <h3 class="font-bold text-lg mb-4">YouTube Trend (12 Mo.)</h3>
+                <div id="chart-container" class="h-64 flex items-center justify-center">
+                    <p id="chart-status" class="text-muted-foreground">Loading trend data...</p>
+                    <canvas id="trendChart" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-card p-6 rounded-xl border">
+                <h3 class="font-bold text-lg mb-4">Top Ranking Videos for "{{ keyword }}"</h3>
+                <div class="space-y-4">
+                    {% for video in top_ranking_videos %}
+                    <div class="flex items-center gap-4">
+                        <a href="https://youtube.com/watch?v={{ video.id }}" target="_blank">
+                            <img src="{{ video.thumbnail }}" alt="{{ video.title }}" class="w-32 h-18 object-cover rounded-md flex-shrink-0">
+                        </a>
+                        <div>
+                            <a href="https://youtube.com/watch?v={{ video.id }}" target="_blank" class="font-semibold text-sm line-clamp-2 hover:text-primary">{{ video.title }}</a>
+                            <p class="text-xs text-muted-foreground mt-1">by {{ video.channel_title }}</p>
+                            <p class="text-xs text-muted-foreground">~{{ "{:,.0f}".format(video.view_count) }} views • {{ video.published_at | relative_time }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted-foreground text-sm">No top ranking videos found for this term.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if top_video_tags %}
+            <div class="bg-card p-6 rounded-xl border">
+                <h3 class="font-bold text-lg mb-4">Most Used Tags from Top Videos</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag, count in top_video_tags %}
+                        <span class="bg-secondary text-secondary-foreground text-sm font-medium px-3 py-1 rounded-full">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="mt-8 space-y-8">
+        {% if recent_searches %}
+        <div class="bg-card p-6 rounded-xl border">
+            <h3 class="text-lg font-bold mb-4">Your Recent Searches</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for search in recent_searches %}
+                <a href="{{ url_for('tool.keyword_research') }}" onclick="event.preventDefault(); document.getElementById('keyword-input').value='{{ search }}'; document.getElementById('keyword-form').submit();" class="text-sm font-medium bg-secondary text-secondary-foreground px-3 py-1.5 rounded-full hover:bg-border cursor-pointer">
+                    {{ search }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="bg-card p-6 rounded-xl border">
+            <h3 class="text-lg font-bold mb-4">🔥 Trending in India Today</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% if trending_videos and 'error' not in trending_videos %}
+                    {% for video in trending_videos %}
+                    <a href="https://youtube.com/watch?v={{ video.id }}" target="_blank" class="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary">
+                        <img src="{{ video.thumbnail }}" alt="{{ video.title }}" class="w-24 h-14 object-cover rounded-md flex-shrink-0">
+                        <div>
+                            <p class="text-sm font-semibold line-clamp-2">{{ video.title }}</p>
+                            <p class="text-xs text-muted-foreground">{{ video.channel_title }}</p>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted-foreground text-sm">Could not load trending videos at the moment.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const keyword = {{ keyword|tojson|safe }};
+    if (keyword) {
+        const statusEl = document.getElementById('chart-status');
+        const canvasEl = document.getElementById('trendChart');
+
+        fetch(`/api/get-trend/${encodeURIComponent(keyword)}`)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) { throw new Error(data.error); }
+                statusEl.style.display = 'none';
+                canvasEl.style.display = 'block';
+
+                const ctx = canvasEl.getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Interest Over Time',
+                            data: data.data,
+                            borderColor: 'hsl(var(--primary))',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { y: { display: false }, x: { display: false } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            })
+            .catch(error => {
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.classList.add('text-destructive');
+            });
+    }
+});
+</script>
+{% endblock %}

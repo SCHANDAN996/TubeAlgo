@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{# --- FIXED: Increased top padding to push content below the sticky header --- #}
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+    <main>
+        {% set announcement = get_setting('site_announcement') %}
+        {% if announcement %}
+        <div class="mb-6 p-4 text-sm rounded-lg bg-blue-500/10 text-blue-700 border border-blue-500/20 flex items-start gap-3">
+            <i class="fa-solid fa-bullhorn mt-1"></i>
+            <div>{{ announcement }}</div>
+        </div>
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 p-4 text-sm rounded-lg {{ 'bg-destructive/10 text-destructive' if category == 'error' else 'bg-primary/10 text-primary' }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block app_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

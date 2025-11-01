@@ -1,0 +1,213 @@
+<div x-show="showCompetitorPrompt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+    <div @click.away="showCompetitorPrompt = false" class="bg-card rounded-xl shadow-xl w-full max-w-lg text-center p-6">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-brand-purple/10">
+            <i class="fa-solid fa-lightbulb text-brand-purple text-2xl"></i>
+        </div>
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-bold text-foreground" id="modal-title">Unlock Powerful AI Suggestions</h3>
+            <div class="mt-2 px-4">
+                <p class="text-sm text-muted-foreground">
+                    Our AI generates the best suggestions by analyzing your competitors' successful videos. Add at least one competitor to get started.
+                </p>
+            </div>
+        </div>
+        <div class="mt-6 flex gap-3">
+            <button @click="proceedWithoutCompetitors()" type="button" class="w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border">
+                Maybe Later
+            </button>
+            <a :href="PAGE_DATA.urls.competitorsPage" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90">
+                Add Competitors
+            </a>
+        </div>
+    </div>
+</div>
+
+<div x-show="showTopicPrompt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+    <div @click.away="showTopicPrompt = false; promptSuggestions = [];" class="bg-card rounded-xl shadow-xl w-full max-w-lg">
+        <div class="p-6">
+            <h2 class="text-lg font-bold">Describe Your Video</h2>
+            <p class="text-sm text-muted-foreground mt-2">Your title is generic. Please provide a detailed topic for better AI suggestions.</p>
+            <div class="mt-4">
+                <textarea x-model="promptTopic" @keyup.debounce.300ms="fetchPromptSuggestions()" @keydown.enter.prevent="handleTopicSubmit()" class="block w-full bg-background border border-input rounded-lg p-3" placeholder="e.g., intraday option selling profit strategy" rows="3"></textarea>
+                <p x-show="promptError" x-transition class="text-xs text-destructive mt-1" x-text="promptError"></p>
+                <div x-show="promptSuggestions.length > 0" class="mt-1 w-full bg-card border rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                    <ul>
+                        <template x-for="suggestion in promptSuggestions">
+                            <li @click="selectPromptSuggestion(suggestion)" class="p-3 text-sm cursor-pointer hover:bg-secondary" x-text="suggestion.keyword"></li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 bg-secondary/50 rounded-b-xl flex justify-end gap-2">
+            <button type="button" @click="showTopicPrompt = false; promptTopic = ''; promptSuggestions = []" class="bg-secondary px-4 py-2 rounded-lg text-sm font-semibold">Cancel</button>
+            <button type="button" @click="handleTopicSubmit()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">Generate</button>
+        </div>
+    </div>
+</div>
+
+<div x-show="showTitleModal" 
+     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @keydown.escape.window="showTitleModal = false" x-cloak>
+    <div @click.away="showTitleModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-3xl h-[90vh] flex flex-col">
+        <div class="p-4 border-b flex-shrink-0 flex justify-between items-center">
+            <h2 class="text-lg font-bold">AI Title Recommendations</h2>
+            <button @click="showTitleModal = false" class="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
+        </div>
+        <div class="flex-grow p-4 space-y-3 overflow-y-auto bg-secondary/50">
+            <template x-for="(titleData, index) in suggestedTitles" :key="index">
+                <div @click="selectTitle(titleData.title)" 
+                     class="cursor-pointer bg-card p-4 rounded-lg border transition-all group relative"
+                     :class="index === 0 ? 'border-2 border-primary shadow-lg' : 'border-border hover:border-primary/50'">
+                    
+                    <template x-if="index === 0">
+                        <div class="absolute -top-3 left-4 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">🏆 AI Top Pick</div>
+                    </template>
+                    
+                    <div class="flex justify-between items-start">
+                        <p class="font-semibold text-foreground group-hover:text-primary pr-16" x-text="titleData.title"></p>
+                        <div class="flex-shrink-0 flex flex-col items-center justify-center bg-primary/10 text-primary rounded-lg px-2 py-1">
+                            <span class="font-extrabold text-lg" x-text="titleData.score"></span>
+                            <span class="text-[10px] font-bold">SCORE</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <template x-for="strength in titleData.strengths" :key="strength">
+                             <span class="text-xs font-semibold bg-secondary text-muted-foreground px-2 py-1 rounded-full border border-border flex items-center gap-1.5">
+                                 <i class="fa-solid" :class="{
+                                     'fa-mouse-pointer text-blue-500': strength.includes('CTR'),
+                                     'fa-magnifying-glass text-green-500': strength.includes('SEO'),
+                                     'fa-bolt text-yellow-500': strength.includes('Curiosity') || strength.includes('Hook'),
+                                     'fa-fire text-orange-500': strength.includes('Viral'),
+                                     'fa-comments text-purple-500': strength.includes('Engagement'),
+                                     'fa-heart text-red-500': strength.includes('Emotional')
+                                 }"></i>
+                                 <span x-text="strength"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            <p x-show="suggestedTitles.length === 0" class="text-muted-foreground text-sm text-center py-4">No titles found. Try a different topic.</p>
+        </div>
+        <div class="p-4 border-t flex-shrink-0 flex justify-end">
+            <button @click="showTitleModal = false" class="bg-secondary px-4 py-2 rounded-lg text-sm font-semibold">Close</button>
+        </div>
+    </div>
+</div>
+
+<div x-show="showTagsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showTagsModal = false" x-cloak>
+    <div class="bg-card rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+            <h2 class="text-lg font-bold">AI Tag Recommendations</h2>
+            <button @click="showTagsModal = false" class="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
+        </div>
+        
+        <div class="p-6 flex-grow overflow-y-auto space-y-6">
+            <div x-show="suggestedTags.main_keywords && suggestedTags.main_keywords.length > 0">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-key text-yellow-500"></i> Main Keywords</h3>
+                    <button @click="copyTags(suggestedTags.main_keywords, $el)" class="text-xs font-semibold bg-secondary px-2 py-1 rounded-md hover:bg-border">Copy</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="tag in suggestedTags.main_keywords" :key="tag">
+                        <span @click="toggleSuggestedTag(tag)" class="cursor-pointer inline-flex items-center border-2 rounded-lg transition-all" :class="selectedSuggestedTags.includes(tag) ? 'bg-primary border-primary text-primary-foreground' : 'bg-secondary border-secondary hover:border-border'">
+                            <span class="text-sm font-semibold px-3 py-1.5" x-text="tag"></span>
+                        </span>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="suggestedTags.secondary_keywords && suggestedTags.secondary_keywords.length > 0">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-tags text-blue-500"></i> Secondary Keywords</h3>
+                    <button @click="copyTags(suggestedTags.secondary_keywords, $el)" class="text-xs font-semibold bg-secondary px-2 py-1 rounded-md hover:bg-border">Copy</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="tag in suggestedTags.secondary_keywords" :key="tag">
+                        <span @click="toggleSuggestedTag(tag)" class="cursor-pointer inline-flex items-center border rounded-lg transition-all" :class="selectedSuggestedTags.includes(tag) ? 'bg-primary border-primary text-primary-foreground' : 'bg-secondary hover:bg-border'">
+                            <span class="text-sm font-medium px-3 py-1" x-text="tag"></span>
+                        </span>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="suggestedTags.broad_tags && suggestedTags.broad_tags.length > 0">
+                 <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-foreground flex items-center gap-2"><i class="fa-solid fa-folder-open text-gray-500"></i> Broad Categories</h3>
+                    <button @click="copyTags(suggestedTags.broad_tags, $el)" class="text-xs font-semibold bg-secondary px-2 py-1 rounded-md hover:bg-border">Copy</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="tag in suggestedTags.broad_tags" :key="tag">
+                        <span @click="toggleSuggestedTag(tag)" class="cursor-pointer inline-flex items-center border rounded-lg transition-all" :class="selectedSuggestedTags.includes(tag) ? 'bg-primary border-primary text-primary-foreground' : 'bg-secondary hover:bg-border'">
+                            <span class="text-sm font-medium px-3 py-1" x-text="tag"></span>
+                        </span>
+                    </template>
+                </div>
+            </div>
+             <p x-show="!suggestedTags.main_keywords && !suggestedTags.secondary_keywords" class="text-muted-foreground text-sm text-center py-4">No tags found. Try a different topic.</p>
+        </div>
+        
+        <div class="p-4 border-t flex-shrink-0 flex justify-between items-center">
+            <button type="button" @click="executeGenerateTags(true)" class="text-xs bg-secondary font-semibold px-3 py-1 rounded-full hover:bg-border" :disabled="isGenerating">
+                <span x-show="!isGenerating"><i class="fa-solid fa-arrows-rotate mr-1"></i> Generate New</span>
+                <span x-show="isGenerating"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Generating...</span>
+            </button>
+            <div class="flex gap-2">
+                <button @click="showTagsModal = false" class="bg-secondary px-4 py-2 rounded-lg text-sm font-semibold">Cancel</button>
+                <template x-if="selectedSuggestedTags.length > 0">
+                    <button @click="addSelectedTags()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">
+                        Add <span x-text="selectedSuggestedTags.length"></span> Selected
+                    </button>
+                </template>
+                <template x-if="selectedSuggestedTags.length === 0">
+                    <button @click="addAllTags()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">Add All</button>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div x-show="showCompetitorPrompt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+    </div>
+
+<div x-show="showTopicPrompt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" x-cloak>
+    </div>
+
+<div x-show="showTitleModal" 
+     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @keydown.escape.window="showTitleModal = false" x-cloak>
+    </div>
+
+<div x-show="showTagsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showTagsModal = false" x-cloak>
+    </div>
+
+
+<div x-show="showScriptModal"
+     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @keydown.escape.window="showScriptModal = false" x-cloak>
+    <div @click.away="showScriptModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-3xl h-[90vh] flex flex-col">
+        <div class="p-4 border-b flex-shrink-0 flex justify-between items-center">
+            <h2 class="text-lg font-bold">AI Generated Script Outline</h2>
+            <button @click="showScriptModal = false" class="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
+        </div>
+        <div class="flex-grow p-6 overflow-y-auto bg-secondary/50">
+            <div class="prose prose-sm max-w-none script-content" x-html="generatedScript ? marked.parse(generatedScript) : 'Loading script...'"></div>
+        </div>
+        <div class="p-4 border-t flex-shrink-0 flex justify-between items-center">
+            <button @click="copyScriptToClipboard()" class="text-sm font-semibold bg-secondary px-4 py-2 rounded-lg hover:bg-border">
+                <i class="fa-regular fa-copy mr-2"></i><span x-text="copyScriptButtonText"></span>
+            </button>
+            <div class="flex gap-2">
+                <button @click="showScriptModal = false" class="bg-secondary px-4 py-2 rounded-lg text-sm font-semibold">Close</button>
+                <button @click="useScript()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-semibold">
+                    <i class="fa-solid fa-check mr-2"></i>Use This Script
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

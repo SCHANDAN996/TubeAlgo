@@ -1,0 +1,239 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+{# Pass video ID to Alpine, check if video object exists #}
+<div x-data="videoAnalytics('{{ video.id if video else 'error' }}')" x-init="initSSE()">
+    <div class="mb-4">
+        <a href="{{ url_for('manager.manage_videos') }}" class="text-sm font-medium text-primary hover:underline">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to YT Manager
+        </a>
+    </div>
+
+    {# Video Title Section - Use Alpine variables initialized from Flask #}
+     <div class="bg-card p-6 rounded-xl border shadow-sm mb-6">
+        {# Show only when title is loaded (initially or via template) #}
+        <template x-if="videoTitleFromTemplate">
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <img :src="videoThumbnailFromTemplate" alt="Video Thumbnail" class="w-48 h-27 rounded-lg border-2 border-secondary object-cover flex-shrink-0" @error="$el.style.display='none'"> {# Hide if image fails #}
+                <div class="flex-grow text-center sm:text-left">
+                    <h1 class="text-2xl font-bold text-foreground" x-text="videoTitleFromTemplate"></h1>
+                    <p class="text-sm text-muted-foreground mt-2">Published <span x-text="videoPublishedAtRelative"></span></p>
+                </div>
+            </div>
+        </template>
+        {# Show loading message if title isn't ready initially #}
+        <template x-if="!videoTitleFromTemplate">
+             <div class="text-center py-4 text-muted-foreground animate-pulse">Loading video details...</div>
+        </template>
+     </div>
+
+
+    {# General Error State for SSE connection failure #}
+    <template x-if="streamError">
+        <div class="bg-destructive/10 text-destructive p-4 rounded-lg border border-destructive/20 mb-6 text-center">
+             <p class="font-bold">Error Loading Data</p>
+             <p x-text="streamError"></p>
+             <button @click="initSSE()" class="mt-2 text-sm font-semibold bg-destructive/20 px-3 py-1 rounded-md hover:bg-destructive/30">Retry Connection</button>
+        </div>
+    </template>
+
+    {# KPI Section - Shows individual loading/error states #}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {# Views #}
+        <div class="bg-card p-5 rounded-xl border">
+            <h3 class="text-sm font-medium text-muted-foreground">Views</h3>
+            <div x-show="views.isLoading" class="h-8 bg-secondary rounded-md animate-pulse mt-1"></div>
+            <p x-show="!views.isLoading && views.error" class="text-sm text-destructive mt-1" x-text="views.error"></p>
+            {# Show '...' while loading, then data or 'N/A' #}
+            <p x-show="!views.isLoading && !views.error" class="text-3xl font-bold text-foreground mt-1" x-text="views.data !== null ? Number(views.data).toLocaleString() : 'N/A'"></p>
+            <p x-show="views.isLoading" class="text-3xl font-bold text-foreground mt-1 text-muted-foreground/30">...</p>
+        </div>
+        {# Watch Time #}
+        <div class="bg-card p-5 rounded-xl border">
+            <h3 class="text-sm font-medium text-muted-foreground">Watch Time (Hours)</h3>
+             <div x-show="watchTime.isLoading" class="h-8 bg-secondary rounded-md animate-pulse mt-1"></div>
+             <p x-show="!watchTime.isLoading && watchTime.error" class="text-sm text-destructive mt-1" x-text="watchTime.error"></p>
+            <p x-show="!watchTime.isLoading && !watchTime.error" class="text-3xl font-bold text-foreground mt-1" x-text="watchTime.data !== null ? Number(watchTime.data).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) : 'N/A'"></p>
+             <p x-show="watchTime.isLoading" class="text-3xl font-bold text-foreground mt-1 text-muted-foreground/30">...</p>
+        </div>
+        {# Subscribers #}
+        <div class="bg-card p-5 rounded-xl border">
+            <h3 class="text-sm font-medium text-muted-foreground">Subscribers Gained</h3>
+             <div x-show="subscribers.isLoading" class="h-8 bg-secondary rounded-md animate-pulse mt-1"></div>
+             <p x-show="!subscribers.isLoading && subscribers.error" class="text-sm text-destructive mt-1" x-text="subscribers.error"></p>
+            <p x-show="!subscribers.isLoading && !subscribers.error" class="text-3xl font-bold text-foreground mt-1" x-text="subscribers.data !== null ? Number(subscribers.data).toLocaleString() : 'N/A'"></p>
+             <p x-show="subscribers.isLoading" class="text-3xl font-bold text-foreground mt-1 text-muted-foreground/30">...</p>
+        </div>
+    </div>
+
+    {# Charts and AI Section #}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {# Audience Retention #}
+        <div class="bg-card p-6 rounded-xl border shadow-sm">
+            <h2 class="text-xl font-bold text-foreground mb-4 font-display">Audience Retention</h2>
+            <div class="h-80">
+                <template x-if="retention.isLoading"><div class="flex items-center justify-center h-full text-muted-foreground"><i class="fa-solid fa-spinner fa-spin text-2xl mr-3"></i> Loading Retention...</div></template>
+                <template x-if="!retention.isLoading && retention.error"><div class="flex items-center justify-center h-full text-destructive text-center"><div><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p x-text="retention.error"></p></div></div></template>
+                <canvas x-show="!retention.isLoading && !retention.error && retention.video_retention?.data?.length > 0" x-ref="retentionChart"></canvas>
+            </div>
+        </div>
+
+        {# AI Retention Analysis #}
+        <div class="bg-card p-6 rounded-xl border shadow-sm">
+             <h2 class="text-xl font-bold text-foreground mb-4 font-display">AI Retention Analysis</h2>
+            <div class="space-y-3">
+                 <template x-if="retentionInsights.isLoading"><div class="flex items-center text-muted-foreground"><i class="fa-solid fa-spinner fa-spin mr-3"></i> AI is analyzing...</div></template>
+                 <template x-if="!retentionInsights.isLoading && retentionInsights.error"><div class="p-3 bg-yellow-400/10 text-yellow-600 rounded-lg text-sm" x-text="retentionInsights.error"></div></template>
+                 <template x-if="!retentionInsights.isLoading && !retentionInsights.error && retentionInsights.data?.insights">
+                    <template x-for="insight in retentionInsights.data.insights" :key="insight.text"><div class="flex items-start gap-3 p-3 rounded-lg" :class="{ 'bg-green-500/10': insight.type === 'good', 'bg-red-500/10': insight.type === 'bad', 'bg-blue-500/10': insight.type === 'info' }"> <i class="mt-1 text-lg" :class="insight.icon || 'fa-solid fa-info-circle'"></i> <p class="text-sm" x-text="insight.text"></p> </div></template>
+                     <p x-show="!retentionInsights.error && retentionInsights.data && (!retentionInsights.data.insights || retentionInsights.data.insights.length === 0)" class="text-sm text-muted-foreground">AI could not generate specific insights.</p>
+                </template>
+                 {# Show only when loading is done, no error, but no data object exists #}
+                 <p x-show="!retentionInsights.isLoading && !retentionInsights.error && !retentionInsights.data" class="text-sm text-muted-foreground">Waiting for data...</p>
+             </div>
+        </div>
+
+        {# Top Traffic Sources #}
+        <div class="bg-card p-6 rounded-xl border shadow-sm lg:col-span-2">
+            <h2 class="text-xl font-bold text-foreground mb-4 font-display">Top Traffic Sources</h2>
+            <div class="h-80">
+                 <template x-if="traffic.isLoading"><div class="flex items-center justify-center h-full text-muted-foreground"><i class="fa-solid fa-spinner fa-spin text-2xl mr-3"></i> Loading Traffic...</div></template>
+                 <template x-if="!traffic.isLoading && traffic.error">
+                     <div class="flex items-center justify-center h-full text-destructive text-center"><div><i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p x-text="traffic.error"></p></div></div>
+                 </template>
+                <canvas x-show="!traffic.isLoading && !traffic.error && traffic.data?.data?.labels?.length > 0" x-ref="trafficChart"></canvas>
+                {# Message if data loaded successfully but was empty or marked as 'No data' error #}
+                <template x-if="!traffic.isLoading && !traffic.error && traffic.data?.data && (!traffic.data.data.labels || traffic.data.data.labels.length === 0)">
+                     <div class="flex items-center justify-center h-full text-muted-foreground">No traffic source data available for this video.</div>
+                </template>
+                 <template x-if="!traffic.isLoading && traffic.error && traffic.error === 'No traffic source data available.'">
+                      <div class="flex items-center justify-center h-full text-muted-foreground">No traffic source data available for this video.</div>
+                 </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Pass initial video details from Flask to Alpine
+    const initialVideoData = {{ video | tojson | safe }};
+
+    // JS helper functions (find_key_moments, formatRelativeTimeAlpine)
+    function find_key_moments(retentionData){const dips=[],spikes=[];if(!retentionData||retentionData.length<3)return{dips,spikes};for(let i=1;i<retentionData.length-1;i++){const prev=retentionData[i-1],current=retentionData[i],next=retentionData[i+1];if(prev===null||current===null||next===null||typeof prev!='number'||typeof current!='number'||typeof next!='number')continue;const neighborhoodAvg=(prev+next)/2;if(neighborhoodAvg>0.001&&current<neighborhoodAvg*0.95)dips.push({x:i,y:current});if(neighborhoodAvg>0.001&&current>neighborhoodAvg*1.03)spikes.push({x:i,y:current});else if(neighborhoodAvg<=0.001&&current>0.01)spikes.push({x:i,y:current})}return{dips,spikes}}
+    function formatRelativeTimeAlpine(isoDate){if(!isoDate)return'';const dt=new Date(isoDate);const now=new Date();const diff=(now.getTime()-dt.getTime())/1000;if(diff<60)return'just now';const minutes=Math.floor(diff/60);if(minutes<60)return`${minutes}m ago`;const hours=Math.floor(minutes/60);if(hours<24)return`${hours}h ago`;const days=Math.floor(hours/24);if(days<7)return`${days}d ago`;const weeks=Math.floor(days/7);if(weeks<4)return`${weeks}w ago`;const months=Math.floor(days/30);if(months<12)return`${months}mo ago`;const years=Math.floor(days/365);return`${years}y ago`}
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('videoAnalytics', (videoId) => ({
+             videoId: videoId,
+             eventSource: null,
+             sseChannel: null,
+             streamError: null, // Error connecting to SSE stream itself
+
+             // Initial data from template render
+             videoTitleFromTemplate: initialVideoData?.snippet?.title || null, // Start as null if not passed
+             videoThumbnailFromTemplate: initialVideoData?.snippet?.thumbnails?.medium?.url || '',
+             videoPublishedAtRelative: initialVideoData?.snippet?.publishedAt ? formatRelativeTimeAlpine(initialVideoData.snippet.publishedAt) : '...',
+
+             // Individual data states with loading indicators
+             views: { data: null, error: null, isLoading: true },
+             watchTime: { data: null, error: null, isLoading: true },
+             subscribers: { data: null, error: null, isLoading: true },
+             retention: { chart: null, video_duration_seconds: 0, video_retention: null, average_retention: null, error: null, isLoading: true },
+             traffic: { chart: null, data: null, error: null, isLoading: true }, // data holds {'data': {labels:[], data:[]}, 'error': ...}
+             retentionInsights: { data: null, error: null, isLoading: true }, // data holds {'insights': {...}}
+
+            initSSE() {
+                // Check if videoId is valid before proceeding
+                if (this.videoId === 'error') {
+                    this.streamError = "Video ID not available.";
+                    this.views.isLoading = this.watchTime.isLoading = this.subscribers.isLoading = this.retention.isLoading = this.traffic.isLoading = this.retentionInsights.isLoading = false;
+                    this.views.error = this.watchTime.error = this.subscribers.error = this.retention.error = this.traffic.error = this.retentionInsights.error = "Video ID Error";
+                    console.error("Cannot initiate SSE: Invalid Video ID provided from backend.");
+                    return; // Stop initialization
+                }
+                 // Reset states on init/retry
+                this.streamError = null; this.views = { data: null, error: null, isLoading: true }; this.watchTime = { data: null, error: null, isLoading: true }; this.subscribers = { data: null, error: null, isLoading: true }; this.retention = { chart: null, video_duration_seconds: 0, video_retention: null, average_retention: null, error: null, isLoading: true }; this.traffic = { chart: null, data: null, error: null, isLoading: true }; this.retentionInsights = { data: null, error: null, isLoading: true };
+
+                // Fetch initiation data
+                fetch(`/api/analytics/${this.videoId}/stream-data`)
+                    .then(res => { if(!res.ok){ return res.json().then(errData => { throw new Error(errData.error || `Failed: ${res.statusText}`); }); } return res.json(); })
+                    .then(initData => { if(initData.status === 'initiated' && initData.channel) { this.sseChannel = initData.channel; this.connectEventSource(); } else { throw new Error("Stream init failed."); } })
+                    .catch(err => { this.streamError = `Could not start data stream: ${err.message}`; Object.values(this).forEach(s => { if(s && typeof s === 'object' && s.isLoading) { s.isLoading = false; s.error = "Stream failed"; } }); console.error("SSE Initiation Error:", err); });
+            },
+
+            connectEventSource() {
+                if(this.eventSource) { this.eventSource.close(); } // Close existing
+                const url = `/stream?channel=${this.sseChannel}`; console.log("Connecting to EventSource:", url); this.eventSource = new EventSource(url);
+                this.eventSource.onopen = () => { console.log("SSE Connection Opened"); this.streamError = null; };
+                this.eventSource.onmessage = (event) => { console.log("SSE Generic Message:", event.data); };
+                this.eventSource.addEventListener('views', (event) => this.handleSSEData(event, this.views));
+                this.eventSource.addEventListener('watchTime', (event) => this.handleSSEData(event, this.watchTime));
+                this.eventSource.addEventListener('subscribers', (event) => this.handleSSEData(event, this.subscribers));
+                this.eventSource.addEventListener('retention', (event) => this.handleSSEData(event, this.retention, this.renderRetentionChart));
+                this.eventSource.addEventListener('traffic', (event) => this.handleSSEData(event, this.traffic, this.renderTrafficChart));
+                this.eventSource.addEventListener('retentionInsights', (event) => this.handleSSEData(event, this.retentionInsights));
+                this.eventSource.addEventListener('complete', (event) => { console.log("SSE Backend signaled completion:", event.data); this.closeSSE(false); });
+                this.eventSource.onerror = (error) => { console.error("EventSource failed:", error); this.streamError = "Data stream connection error."; this.closeSSE(true); };
+            },
+
+            handleSSEData(event, targetState, renderCallback = null) {
+                try {
+                    console.log(`SSE Received [${event.type}]:`, event.data);
+                    const parsedData = JSON.parse(event.data);
+                    if (parsedData.error) {
+                        targetState.error = parsedData.error; targetState.data = null;
+                        if (event.type === 'retention') { targetState.video_retention = null; targetState.average_retention = null; }
+                        if (targetState.chart) { targetState.chart.destroy(); targetState.chart = null; }
+                    } else { // Success
+                        targetState.error = null; // Clear previous error on success
+                        if (event.type === 'retention') { targetState.video_duration_seconds = parsedData.video_duration_seconds; targetState.video_retention = parsedData.video_retention; targetState.average_retention = parsedData.average_retention; targetState.error = parsedData.video_retention?.error || null; }
+                        else if (event.type === 'traffic') { targetState.data = parsedData.data; targetState.error = parsedData.data?.error; } // Use inner error
+                        else if (event.type === 'retentionInsights') { targetState.data = parsedData.insights; } // Data is under 'insights'
+                        else { targetState.data = parsedData.data; } // For KPIs
+                    }
+                } catch (e) { console.error(`Error parsing SSE data for ${event.type}:`, e); targetState.error = "Invalid data format."; if (targetState.chart) { targetState.chart.destroy(); targetState.chart = null; } }
+                finally {
+                    targetState.isLoading = false;
+                    // Trigger chart render if callback provided, no error, and valid data exists
+                    if (renderCallback && !targetState.error) {
+                         if (event.type === 'retention' && targetState.video_retention?.data?.length > 0) { this.$nextTick(() => renderCallback.call(this)); }
+                         else if (event.type === 'traffic' && targetState.data?.data?.labels?.length > 0) { this.$nextTick(() => renderCallback.call(this)); }
+                    } else if (renderCallback && targetState.error) { if (targetState.chart) { targetState.chart.destroy(); targetState.chart = null; } }
+                }
+            },
+
+             closeSSE(isError = false) { /* ... (remains same, sets remaining isLoading to false) ... */
+                 if (this.eventSource) { console.log(`Closing SSE connection. Error: ${isError}`); this.eventSource.close(); this.eventSource = null; }
+                 Object.entries(this).forEach(([key, section]) => { if (section && typeof section === 'object' && section.hasOwnProperty('isLoading') && section.isLoading) { section.isLoading = false; if (isError && !section.error) { section.error = section.error || "Loading incomplete."; console.warn(`Section '${key}' did not receive data before SSE error/close.`); } else if (!isError && !section.error && section.data === null && !['views','watchTime','subscribers','retention','traffic','retentionInsights'].includes(key) ) { section.error = section.error || "No data received."; console.warn(`Section '${key}' did not receive data before SSE complete.`); } } });
+            },
+
+            // --- Chart rendering functions (Remains same) ---
+            renderRetentionChart() { /* ... */
+                if (this.retention.chart) { this.retention.chart.destroy(); this.retention.chart = null; }
+                if (!this.$refs.retentionChart || !this.retention.video_retention?.data?.length > 0) { console.error("Cannot render retention: Missing canvas or data."); this.retention.error = this.retention.error || "Chart data unavailable."; return; }
+                const ctx = this.$refs.retentionChart.getContext('2d'); const videoDuration = this.retention.video_duration_seconds; const videoRetentionData = this.retention.video_retention.data; const averageRetentionData = (this.retention.average_retention && !this.retention.average_retention.error) ? this.retention.average_retention.data : []; const { dips, spikes } = find_key_moments(videoRetentionData); const datasets = []; datasets.push({ label: 'This Video', data: videoRetentionData, borderColor: 'hsl(var(--primary))', borderWidth: 3, type: 'line', fill: false, tension: 0.1, pointRadius: 0 }); if(spikes?.length > 0) datasets.push({ label: 'Spikes', data: spikes, backgroundColor: 'rgba(74, 222, 128, 0.9)', type: 'scatter', radius: 6, hoverRadius: 8 }); if(dips?.length > 0) datasets.push({ label: 'Dips', data: dips, backgroundColor: 'rgba(239, 68, 68, 0.9)', type: 'scatter', radius: 6, hoverRadius: 8 }); if (averageRetentionData?.length > 0) { datasets.push({ label: 'Channel Average', data: averageRetentionData, borderColor: 'hsla(var(--primary), 0.4)', borderWidth: 2, borderDash: [5, 5], type: 'line', fill: false, tension: 0.1, pointRadius: 0 }); } this.retention.chart = new Chart(ctx, { type: 'line', data: { labels: this.retention.video_retention.labels || Array.from({length: 101}, (_, i) => `${i}%`), datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, max: 1.0, ticks: { callback: value => (value * 100).toFixed(0) + '%' } }, x: { ticks: { autoSkipPadding: 15, maxRotation: 0 } } }, plugins: { legend: { position: 'bottom', labels: { filter: (item) => (item.text === 'This Video' || item.text === 'Channel Average') } }, tooltip: { mode: 'index', intersect: false, callbacks: { title: (tooltipItems)=>{ /* ... */ if (!tooltipItems || tooltipItems.length === 0) return ''; const firstItem = tooltipItems[0]; const label = firstItem.label || ''; const percentage = parseFloat(label.replace('%', '')); if (isNaN(percentage) || !videoDuration) return label; const timeInSeconds = (percentage / 100) * videoDuration; const minutes = Math.floor(timeInSeconds / 60); const seconds = Math.floor(timeInSeconds % 60); const formattedTime = `${minutes}:${seconds.toString().padStart(2, '0')}`; return `${formattedTime} (${label})`; }, label: (context)=>{ /* ... */ if (!context || !context.dataset) return ''; if (context.dataset.type === 'scatter') { if (!context.parsed || context.parsed.y === null || isNaN(context.parsed.y)) return ''; return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(1)}% Retention`; } let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed && context.parsed.y !== null && !isNaN(context.parsed.y)) { label += (context.parsed.y * 100).toFixed(1) + '%'; } else { label += 'N/A'; } return label; } } } } } }); this.retention.error = null;
+            },
+
+            renderTrafficChart() {
+                if (this.traffic.chart) { this.traffic.chart.destroy(); this.traffic.chart = null; }
+                 // Check traffic.data.data (inner object)
+                 if (!this.$refs.trafficChart || !this.traffic.data?.data?.labels || this.traffic.data.data.labels.length === 0) {
+                      console.warn("Cannot render traffic chart: Missing canvas or valid data/labels.");
+                      if (!this.traffic.isLoading && !this.traffic.error) { this.traffic.error = "Chart data unavailable."; }
+                      return;
+                 }
+                const ctx = this.$refs.trafficChart.getContext('2d');
+                this.traffic.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    // Access labels/data from inner 'data' object
+                    data: { labels: this.traffic.data.data.labels, datasets: [{ label: 'Views', data: this.traffic.data.data.data, backgroundColor: [ /* colors */ 'rgba(139, 92, 246, 0.8)', 'rgba(52, 211, 153, 0.8)', 'rgba(59, 130, 246, 0.8)', 'rgba(234, 179, 8, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(107, 114, 128, 0.8)', 'rgba(217, 70, 239, 0.8)', 'rgba(34, 197, 94, 0.8)', 'rgba(249, 115, 22, 0.8)', 'rgba(14, 165, 233, 0.8)' ], borderColor: 'hsl(var(--card))', borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (context) => { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0; label += context.formattedValue + ` (${percentage}%)`; } return label; } } } } }
+                });
+                this.traffic.error = null; // Clear error if chart rendered
+            },
+             // Make find_key_moments available
+             find_key_moments: find_key_moments
+        }));
+    });
+</script>
+{% endblock %}

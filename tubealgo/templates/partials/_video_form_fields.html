@@ -1,0 +1,41 @@
+<div class="space-y-6">
+    <div>
+        <label for="title" class="block text-sm font-medium text-foreground">Title</label>
+        <div class="mt-1 relative">
+            <textarea name="title" id="title" x-model="titleField" rows="3" class="w-full bg-background border border-input rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:outline-none transition-shadow" placeholder="Your awesome video title goes here..." required></textarea>
+            <p x-show="titleError" class="text-xs text-destructive mt-1" x-text="titleError"></p>
+            <button @click.prevent="executeGenerateTitles()" type="button" class="absolute bottom-3 right-3 text-xs bg-primary text-primary-foreground font-semibold px-2 py-1 rounded-md hover:bg-primary/80 flex items-center gap-1.5" title="Generate titles with AI">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Titles
+            </button>
+        </div>
+    </div>
+
+    <div>
+        <label for="description" class="block text-sm font-medium text-foreground">Description</label>
+        <div class="mt-1 relative">
+            <textarea name="description" id="description" x-model="descriptionField" rows="8" class="w-full bg-background border border-input rounded-lg p-3 text-base focus:ring-2 focus:ring-primary focus:outline-none transition-shadow" placeholder="Tell viewers about your video..."></textarea>
+            <button @click.prevent="executeGenerateDescription()" type="button" class="absolute top-3 right-3 text-xs bg-primary text-primary-foreground font-semibold px-2 py-1 rounded-md hover:bg-primary/80 flex items-center gap-1.5" title="Generate description with AI">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Description
+            </button>
+        </div>
+    </div>
+
+    <div>
+        <label for="tags" class="block text-sm font-medium text-foreground">Tags</label>
+        <div class="mt-1 p-2 bg-background border border-input rounded-lg flex flex-wrap gap-2">
+            <template x-for="(tag, index) in tags" :key="index">
+                <span class="inline-flex items-center text-sm font-medium bg-secondary text-secondary-foreground rounded-full px-3 py-1">
+                    <span x-text="tag"></span>
+                    <button @click.prevent="removeTag(index)" class="ml-2 text-muted-foreground hover:text-destructive">&times;</button>
+                </span>
+            </template>
+            <input type="text" x-model="tagInput" @keydown.enter.prevent="addTag()" @keydown.backspace="if(tagInput === '' && tags.length > 0) removeTag(tags.length - 1)" class="flex-grow bg-transparent p-1 focus:outline-none" placeholder="Add a tag...">
+        </div>
+        <div class="mt-2 flex justify-between items-center">
+            <p class="text-xs text-muted-foreground">Separate tags with a comma or press Enter. ( <span x-text="500 - tags.join(', ').length"></span> characters remaining )</p>
+            <button @click.prevent="executeGenerateTags()" type="button" class="text-xs bg-primary text-primary-foreground font-semibold px-2 py-1 rounded-md hover:bg-primary/80 flex items-center gap-1.5" title="Generate tags with AI">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Tags
+            </button>
+        </div>
+    </div>
+</div>

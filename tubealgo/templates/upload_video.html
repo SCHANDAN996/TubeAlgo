@@ -1,0 +1,168 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+
+<script>
+    const PAGE_DATA = {
+        isUploadPage: true,
+        formActionUrl: "{{ url_for('manager.upload') }}",
+        csrfToken: "{{ form.csrf_token._value() }}",
+        hasCompetitors: {{ has_competitors|tojson }},
+        urls: {
+            generateTitles: "{{ url_for('ai_api.api_generate_titles') }}",
+            generateTags: "{{ url_for('ai_api.api_generate_tags') }}",
+            generateDescription: "{{ url_for('ai_api.api_generate_description') }}",
+            keywordSuggestions: "{{ url_for('tool.api_keyword_suggestions') }}",
+            competitorsPage: "{{ url_for('competitor.competitors') }}"
+        },
+        initial: {}
+    };
+</script>
+
+<div class="max-w-4xl mx-auto" x-data="videoForm()">
+    <div x-show="isGenerating" x-transition:enter="ease-out duration-300" x-transition:leave="ease-in duration-200" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center" x-cloak>
+        <div class="bg-gray-800/80 rounded-lg p-8 text-center">
+            <i class="fa-solid fa-wand-magic-sparkles fa-spin text-4xl text-white"></i>
+            <p class="mt-4 font-semibold text-white" x-text="generationMessage"></p>
+        </div>
+    </div>
+
+    <div x-show="isUploading" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4" x-cloak>
+        <div class="bg-card rounded-lg p-8 text-center w-full max-w-md">
+            <div x-show="!uploadComplete" x-transition>
+                <h3 class="text-lg font-semibold text-foreground" x-text="uploadMessage"></h3>
+                <div class="w-full bg-secondary rounded-full h-4 mt-4 border border-border">
+                    <div class="bg-primary h-4 rounded-full transition-all duration-300" :style="`width: ${uploadProgress}%`"></div>
+                </div>
+                <p class="text-2xl font-bold text-foreground mt-2" x-text="`${Math.round(uploadProgress)}%`"></p>
+            </div>
+            <div x-show="uploadComplete" x-transition>
+                <div class="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto">
+                    <i class="fa-solid fa-check text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-foreground mt-4" x-text="uploadMessage"></h3>
+                <button @click="finishUpload()" class="mt-6 w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90">
+                    Go to My Videos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-8">
+        <a href="{{ url_for('manager.manage_videos') }}" class="text-sm font-medium text-primary hover:underline">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to YT Manager
+        </a>
+    </div>
+
+    <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+        <h1 class="text-3xl font-bold mb-6 font-display">Upload New Video</h1>
+        <form method="POST" enctype="multipart/form-data" @submit.prevent="submitUploadForm($event)">
+            {{ form.hidden_tag() }}
+            <input type="hidden" name="tags" :value="tags.join(', ')">
+            <input type="hidden" name="publish_at" :value="scheduledTime">
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-foreground">Video File</label>
+                    <div x-show="!fileName" @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="handleDrop($event)"
+                         class="mt-1 relative flex justify-center w-full h-48 px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors"
+                         :class="isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'">
+                        <div class="space-y-1 text-center m-auto">
+                            <i class="fa-solid fa-video text-4xl mx-auto text-muted-foreground"></i>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="video_file" class="relative cursor-pointer bg-transparent rounded-md font-medium text-primary hover:text-primary/80">
+                                    <span>Upload a file</span>
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
+                            </div>
+                            <p class="text-xs text-muted-foreground">MP4, MOV, WebM, MKV, AVI</p>
+                        </div>
+                        {{ form.video_file(class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer", **{'x-ref': 'videoInput', '@change': 'handleFileSelect($event)'}) }}
+                    </div>
+                    <div x-show="fileName" x-transition class="mt-2 bg-secondary border border-border p-4 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center gap-3"><i class="fa-solid fa-film text-primary text-2xl"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-foreground" x-text="fileName"></p>
+                                <p class="text-xs text-muted-foreground" x-text="fileSize"></p>
+                            </div>
+                        </div>
+                        <button @click="clearFile()" type="button" class="text-muted-foreground hover:text-destructive text-xl">&times;</button>
+                    </div>
+                    {% if form.video_file.errors %}
+                        {% for error in form.video_file.errors %}
+                            <p class="text-xs text-destructive mt-1">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                {% include 'partials/_video_form_fields.html' %}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-border mt-6">
+                
+                <div x-show="!isVideoShort" class="space-y-2">
+                    <label class="block text-sm font-medium text-foreground">Thumbnail (Optional)</label>
+                    <div @dragover.prevent="isDraggingThumbnail = true" @dragleave.prevent="isDraggingThumbnail = false" @drop.prevent="handleThumbnailDrop($event)"
+                         class="relative flex justify-center items-center w-full h-48 border-2 border-dashed rounded-lg transition-colors"
+                         :class="isDraggingThumbnail ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'">
+                        
+                        <div x-show="!newThumbnailUrl" class="text-center text-muted-foreground">
+                            <i class="fa-solid fa-image text-4xl"></i>
+                            <p class="mt-2 text-sm">Drop an image or <label for="thumbnail" class="text-primary cursor-pointer hover:underline">browse</label></p>
+                            <p class="text-xs mt-1">1280x720, under 2MB</p>
+                        </div>
+                        
+                        <img x-show="newThumbnailUrl" :src="newThumbnailUrl" class="w-full h-full object-cover rounded-lg">
+                        
+                        <button x-show="newThumbnailUrl" @click.prevent="clearThumbnail()" type="button" class="absolute top-2 right-2 w-7 h-7 bg-black/50 text-white rounded-full hover:bg-black/80 flex items-center justify-center">&times;</button>
+                        
+                        <input type="file" id="thumbnail" name="thumbnail" class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" x-ref="thumbnailInput" @change="handleThumbnailSelect($event)" accept="image/*">
+                    </div>
+                </div>
+
+                <div x-show="isVideoShort" class="bg-secondary p-4 rounded-lg border h-full flex items-center justify-center text-center">
+                    <p class="text-sm text-muted-foreground"><i class="fa-solid fa-circle-info text-primary mr-2"></i>YouTube automatically selects a thumbnail for Shorts.</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground">Visibility</label>
+                        <select name="visibility" x-model="visibility" class="mt-1 block w-full bg-background border border-input rounded-lg p-3">
+                            <option value="private">Private</option>
+                            <option value="unlisted">Unlisted</option>
+                            <option value="public">Public</option>
+                            <option value="schedule">Schedule / Premiere</option>
+                        </select>
+                        <div x-show="visibility === 'schedule' && scheduledTime" x-transition class="mt-2 text-sm bg-primary/10 text-primary p-3 rounded-lg flex justify-between items-center">
+                            <div>
+                                <span class="font-semibold block">Scheduled for:</span> 
+                                <span x-text="formattedScheduledTime"></span>
+                            </div>
+                            <button @click.prevent="showScheduleModal = true" class="font-semibold hover:underline">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-border mt-6 text-center">
+                <button type="submit" class="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-semibold hover:bg-primary/90 active:scale-95 transition-transform text-lg">
+                    <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload to YouTube
+                </button>
+            </div>
+            
+            <div class="text-center mt-4">
+                <p class="text-xs text-muted-foreground">
+                    By clicking "Upload to YouTube", your video file and the metadata you've provided will be sent directly to your YouTube channel via the API.
+                </p>
+            </div>
+            </form>
+    </div>
+
+    {% include 'partials/_ai_modals.html' %}
+    {% include 'partials/_description_modal.html' %}
+    {% include 'partials/_schedule_modal.html' %}
+</div>
+
+<script src="{{ url_for('static', filename='js/video_form.js') }}"></script>
+
+{% endblock %}

@@ -1,0 +1,297 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}AI Settings{% endblock %}
+{% block header_title %}AI Model & API Configuration{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('admin.ai_settings') }}" class="space-y-6">
+    {{ form.hidden_tag() }}
+
+    <!-- AI Model Selection -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-microchip mr-3 text-primary"></i>
+                Active AI Model
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Select which Gemini model powers all AI features</p>
+        </div>
+        <div class="p-6">
+            <label for="selected_model" class="block text-sm font-medium text-foreground mb-3">
+                Active Gemini Model
+            </label>
+            <select name="selected_model" 
+                    id="selected_model" 
+                    class="w-full md:w-2/3 bg-background border border-input rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                {% for model_info in available_models_info %}
+                    <option value="{{ model_info.name }}" {% if model_info.name == selected_model %}selected{% endif %}>
+                        {{ model_info.name }} - {{ model_info.display }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Gemini API Keys Management -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-key mr-3 text-primary"></i>
+                Gemini API Keys
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Add multiple keys for automatic rotation and failover</p>
+        </div>
+        <div class="p-6">
+            <div id="api-key-list" class="space-y-3 mb-4">
+                {% for key in current_keys %}
+                <div class="flex gap-2 api-key-row">
+                    <input type="text" 
+                           name="gemini_keys" 
+                           value="{{ key }}" 
+                           class="flex-grow bg-background border border-input rounded-lg px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+                           placeholder="AIza...">
+                    <button type="button" 
+                            onclick="removeKey(this)" 
+                            class="px-4 py-2.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors" 
+                            title="Remove Key">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" 
+                    id="add-key-btn" 
+                    class="w-full sm:w-auto bg-secondary hover:bg-border text-foreground px-6 py-2.5 rounded-lg font-semibold transition-colors">
+                <i class="fa-solid fa-plus mr-2"></i>Add Another Key
+            </button>
+        </div>
+    </div>
+
+    <!-- AI Prompt Management -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-wand-magic-sparkles mr-3 text-primary"></i>
+                System Prompts
+            </h3>
+            <p class="text-xs text-muted-foreground mt-1">Customize AI behavior. Leave blank to use defaults.</p>
+        </div>
+        <div class="p-6 space-y-6">
+            <!-- Idea Generation Prompt -->
+            <div>
+                <label for="prompt_generate_ideas" class="block text-sm font-medium text-foreground mb-2">
+                    <i class="fa-solid fa-lightbulb text-yellow-500 mr-2"></i>
+                    Content Planner Idea Generation
+                </label>
+                <p class="text-xs text-muted-foreground mb-2">Used when generating video ideas in Content Planner</p>
+                <textarea name="prompt_generate_ideas" 
+                          id="prompt_generate_ideas" 
+                          rows="6" 
+                          class="w-full bg-background border border-input rounded-lg px-4 py-2.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="Enter custom prompt or leave blank for default...">{{ settings.get('prompt_generate_ideas', '') }}</textarea>
+            </div>
+
+            <!-- Titles & Tags Prompt -->
+            <div>
+                <label for="prompt_titles_and_tags" class="block text-sm font-medium text-foreground mb-2">
+                    <i class="fa-solid fa-heading text-blue-500 mr-2"></i>
+                    Titles & Tags Generation
+                </label>
+                <p class="text-xs text-muted-foreground mb-2">Used for generating video titles and YouTube tags</p>
+                <textarea name="prompt_titles_and_tags" 
+                          id="prompt_titles_and_tags" 
+                          rows="6" 
+                          class="w-full bg-background border border-input rounded-lg px-4 py-2.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="Enter custom prompt or leave blank for default...">{{ settings.get('prompt_titles_and_tags', '') }}</textarea>
+            </div>
+
+            <!-- Description Prompt -->
+            <div>
+                <label for="prompt_description" class="block text-sm font-medium text-foreground mb-2">
+                    <i class="fa-solid fa-align-left text-green-500 mr-2"></i>
+                    Description Generation
+                </label>
+                <p class="text-xs text-muted-foreground mb-2">Used for generating video descriptions</p>
+                <textarea name="prompt_description" 
+                          id="prompt_description" 
+                          rows="6" 
+                          class="w-full bg-background border border-input rounded-lg px-4 py-2.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="Enter custom prompt or leave blank for default...">{{ settings.get('prompt_description', '') }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test & Save Section -->
+    <div class="bg-card rounded-lg border border-border overflow-hidden">
+        <div class="bg-secondary px-6 py-4 border-b border-border">
+            <h3 class="text-lg font-semibold text-foreground flex items-center">
+                <i class="fa-solid fa-flask mr-3 text-primary"></i>
+                Test Configuration
+            </h3>
+        </div>
+        <div class="p-6">
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                <div class="flex-1">
+                    <p class="font-semibold text-foreground mb-1">Test before saving</p>
+                    <p class="text-sm text-muted-foreground">Verify your API keys are working with the selected model</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="button" 
+                            id="test-config-btn" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-lg">
+                        <i class="fa-solid fa-vial-circle-check mr-2"></i>
+                        Test Configuration
+                    </button>
+                    <button type="submit" 
+                            class="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-lg font-semibold transition-colors shadow-lg">
+                        <i class="fa-solid fa-floppy-disk mr-2"></i>
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Test Results Container -->
+            <div id="test-results-container" class="mt-6 hidden">
+                <div class="border-t border-border pt-6">
+                    <h4 class="font-semibold text-foreground mb-3 flex items-center">
+                        <i class="fa-solid fa-clipboard-check mr-2 text-primary"></i>
+                        Test Results
+                    </h4>
+                    
+                    <!-- Loader -->
+                    <div id="test-results-loader" class="hidden text-center py-8">
+                        <i class="fa-solid fa-spinner fa-spin text-3xl text-primary mb-3"></i>
+                        <p class="text-sm text-muted-foreground">Testing API configuration...</p>
+                    </div>
+                    
+                    <!-- Results List -->
+                    <div id="test-results-list" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+// Add/Remove API Keys
+document.getElementById('add-key-btn').addEventListener('click', function() {
+    const list = document.getElementById('api-key-list');
+    const newRow = document.createElement('div');
+    newRow.className = 'flex gap-2 api-key-row';
+    newRow.innerHTML = `
+        <input type="text" 
+               name="gemini_keys" 
+               value="" 
+               class="flex-grow bg-background border border-input rounded-lg px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+               placeholder="AIza...">
+        <button type="button" 
+                onclick="removeKey(this)" 
+                class="px-4 py-2.5 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors" 
+                title="Remove Key">
+            <i class="fa-solid fa-trash-can"></i>
+        </button>
+    `;
+    list.appendChild(newRow);
+});
+
+function removeKey(button) {
+    const rows = document.querySelectorAll('.api-key-row');
+    if (rows.length > 1) {
+        button.parentElement.remove();
+    } else {
+        const inputField = button.parentElement.querySelector('input[name="gemini_keys"]');
+        if (inputField) {
+            inputField.value = '';
+        }
+    }
+}
+
+// Test Configuration
+document.getElementById('test-config-btn').addEventListener('click', async function() {
+    const container = document.getElementById('test-results-container');
+    const loader = document.getElementById('test-results-loader');
+    const list = document.getElementById('test-results-list');
+    const button = this;
+    
+    const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenInput ? csrfTokenInput.value : null;
+
+    if (!csrfToken) {
+        alert('Security token missing. Please refresh the page.');
+        return;
+    }
+
+    // Show container and loader
+    container.classList.remove('hidden');
+    loader.classList.remove('hidden');
+    list.innerHTML = '';
+    button.disabled = true;
+
+    // Collect data
+    const keyInputs = document.querySelectorAll('input[name="gemini_keys"]');
+    const keys = Array.from(keyInputs).map(input => input.value).filter(k => k.trim() !== '');
+    const model = document.getElementById('selected_model').value;
+
+    try {
+        const response = await fetch("{{ url_for('admin.test_ai_config') }}", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': csrfToken 
+            },
+            body: JSON.stringify({ keys: keys, model: model })
+        });
+        
+        const data = await response.json();
+
+        if (response.status === 400 && data.message && data.message.includes('CSRF')) {
+            list.innerHTML = `<div class="p-4 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-500/20">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i>
+                ${data.message} Please refresh the page.
+            </div>`;
+        } else if (data.results) {
+            data.results.forEach(result => {
+                const isSuccess = result.status === 'Valid';
+                const resultDiv = document.createElement('div');
+                
+                resultDiv.className = `flex items-center justify-between p-4 rounded-lg border text-sm ${
+                    isSuccess 
+                        ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' 
+                        : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
+                }`;
+
+                const icon = isSuccess 
+                    ? '<i class="fa-solid fa-circle-check mr-2"></i>' 
+                    : '<i class="fa-solid fa-circle-xmark mr-2"></i>';
+
+                resultDiv.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        ${icon}
+                        <span class="font-mono">${result.key_mask}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold">${result.status}</span>
+                        ${result.reason ? `<span class="text-xs opacity-75">(${result.reason})</span>` : ''}
+                    </div>
+                `;
+                list.appendChild(resultDiv);
+            });
+        } else {
+            list.innerHTML = `<div class="p-4 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-500/20">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i>
+                ${data.message || 'An unknown error occurred during test.'}
+            </div>`;
+        }
+    } catch (error) {
+        console.error("Test Config Fetch Error:", error);
+        list.innerHTML = `<div class="p-4 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-500/20">
+            <i class="fa-solid fa-circle-exclamation mr-2"></i>
+            Failed to run test. Check console for details.
+        </div>`;
+    } finally {
+        loader.classList.add('hidden');
+        button.disabled = false;
+    }
+});
+</script>
+{% endblock %}

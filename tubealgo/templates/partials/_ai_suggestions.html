@@ -1,0 +1,24 @@
+
+<style>
+    .ai-suggestions-container { margin-top: 20px; padding: 20px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; }
+    .ai-suggestion-card { border-left: 4px solid var(--primary-color); padding: 15px; margin-bottom: 15px; background-color: var(--card-bg-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .ai-suggestion-card h4 { margin: 0 0 5px 0; }
+    .ai-suggestion-card p { margin: 0; opacity: 0.8; }
+</style>
+<div class="ai-suggestions-container">
+    <h2>🤖 AI Top 3 Video Suggestions</h2>
+    <p><small>Based on the analysis of your competitors' most successful recent videos.</small></p>
+    
+    {% if ai_suggestions and 'error' not in ai_suggestions and ai_suggestions|length > 0 %}
+        {% for suggestion in ai_suggestions %}
+            <div class="ai-suggestion-card">
+                <h4>{{ suggestion.title }}</h4>
+                <p>{{ suggestion.description }}</p>
+            </div>
+        {% endfor %}
+    {% elif ai_suggestions and 'error' in ai_suggestions %}
+        <p style="color: #ffc107;"><em>{{ ai_suggestions.error }}</em></p>
+    {% else %}
+        <p><em>Could not generate suggestions. Add more competitors or check your API keys for better results.</em></p>
+    {% endif %}
+</div>

@@ -1,0 +1,408 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-7xl mx-auto space-y-8"
+     x-data="deepAnalysisDashboard()">
+
+    <div class="mb-4">
+        <a href="{{ url_for('competitor.competitors') }}" class="text-sm font-medium text-primary hover:underline">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Back to Competitors
+        </a>
+    </div>
+
+    {# चेतावनी को यहाँ से हटा दिया गया है #}
+
+    {% if channel_data and 'error' not in channel_data %}
+        <div class="bg-card p-6 rounded-xl border shadow-sm">
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <img src="{{ channel_data['Thumbnail URL'] }}" alt="Channel Thumbnail" class="w-24 h-24 rounded-full border-4 border-secondary">
+                <div class="flex-grow text-center sm:text-left">
+                     <h1 class="text-3xl font-bold text-foreground flex items-center justify-center sm:justify-start gap-3">
+                        <span>{{ channel_data.Title }}</span>
+                    </h1>
+                    <div class="flex justify-center sm:justify-start flex-wrap gap-4 sm:gap-6 mt-2 text-muted-foreground">
+                        <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data.Subscribers) }}</strong> Subs</span>
+                        <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data['Total Views']) }}</strong> Views</span>
+                        <span><strong class="text-foreground">{{ "{:,.0f}".format(channel_data['Video Count']) }}</strong> Videos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-b border-border">
+            <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                 <button @click="activeTab = 'overview'" :class="{'border-primary text-primary': activeTab === 'overview', 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300': activeTab !== 'overview'}" class="shrink-0 border-b-2 px-1 pb-4 text-sm font-medium">Overview</button>
+                <button @click="activeTab = 'videos'" :class="{'border-primary text-primary': activeTab === 'videos', 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300': activeTab !== 'videos'}" class="shrink-0 border-b-2 px-1 pb-4 text-sm font-medium">Videos</button>
+                <button @click="activeTab = 'playlists'" :class="{'border-primary text-primary': activeTab === 'playlists', 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300': activeTab !== 'playlists'}" class="shrink-0 border-b-2 px-1 pb-4 text-sm font-medium">Playlists</button>
+            </nav>
+        </div>
+
+        <div>
+            <div x-show="activeTab === 'overview'" x-transition class="space-y-6">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     <div class="bg-card p-6 rounded-xl border shadow-sm">
+                         <h2 class="text-xl font-bold text-foreground mb-4 font-display">Uploads by Day</h2>
+                        <div class="h-64"><canvas id="uploadsByDayChart"></canvas></div>
+                    </div>
+                     <div class="bg-card p-6 rounded-xl border shadow-sm">
+                         <h2 class="text-xl font-bold text-foreground mb-4 font-display">Uploads by Hour (IST)</h2>
+                        <div class="h-64"><canvas id="uploadsByHourChart"></canvas></div>
+                    </div>
+                     <div class="bg-card p-6 rounded-xl border shadow-sm">
+                         <h2 class="text-xl font-bold text-foreground mb-4 font-display">Upload Consistency</h2>
+                        <div class="h-64"><canvas id="uploadChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-card p-6 rounded-xl border shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                             <h2 class="text-xl font-bold text-foreground font-display">Channel Keywords</h2>
+                             <button @click="copyTagsToClipboard(channelKeywords, $el)" class="text-xs font-semibold bg-secondary px-3 py-1.5 rounded-md hover:bg-border">Copy All</button>
+                        </div>
+                         <div class="flex flex-wrap gap-2">
+                            {% for keyword in channel_keywords %}
+                                <span class="bg-indigo-500/10 text-indigo-700 text-sm font-semibold px-3 py-1.5 rounded-full">{{ keyword }}</span>
+                            {% else %}
+                                <p class="text-muted-foreground text-sm">इस चैनल ने कोई कीवर्ड सेट नहीं किए हैं।</p>
+                            {% endfor %}
+                         </div>
+                    </div>
+                    <div class="bg-card p-6 rounded-xl border shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-foreground font-display">Top Video Tags (Tag Cloud)</h2>
+                             <button @click="copyTagsToClipboard(topTags.map(tag => tag[0]), $el)" class="text-xs font-semibold bg-secondary px-3 py-1.5 rounded-md hover:bg-border">Copy All</button>
+                        </div>
+                         <div class="flex flex-wrap gap-x-4 gap-y-2 items-center justify-center min-h-[100px]">
+                            <template x-for="tagData in topTags" :key="tagData[0]">
+                                <span class="text-foreground transition-colors hover:text-primary cursor-pointer"
+                                       :style="{ fontSize: (tagData[1] / maxTagCount * 1.2 + 0.8) + 'rem', fontWeight: (tagData[1] / maxTagCount * 400 + 400) }"
+                                      x-text="tagData[0]">
+                                 </span>
+                            </template>
+                            <template x-if="topTags.length === 0">
+                                 <p class="text-muted-foreground text-sm">इस चैनल के वीडियो में कोई टैग्स नहीं मिले।</p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'videos'" x-transition class="space-y-6">
+                <div class="bg-card p-4 rounded-xl border shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                         <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-muted-foreground mr-2">Sort by:</span>
+                           <button @click="activeVideoSort = 'recent'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoSort === 'recent', 'bg-secondary hover:bg-border': activeVideoSort !== 'recent' }">Most Recent</button>
+                           <button @click="activeVideoSort = 'views'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoSort === 'views', 'bg-secondary hover:bg-border': activeVideoSort !== 'views' }">Most Viewed</button>
+                           <button @click="activeVideoSort = 'comments'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoSort === 'comments', 'bg-secondary hover:bg-border': activeVideoSort !== 'comments' }">Most Comments</button>
+                        </div>
+                        {# --- बदलाव यहाँ: टूलटिप जोड़ा गया --- #}
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button @click="showExportModal = true" class="flex-1 sm:flex-initial bg-brand-green text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-brand-green/90" title="Export selected video data to Excel">
+                                <i class="fa-solid fa-file-excel mr-2"></i>Export Excel
+                            </button>
+                            <a href="{{ url_for('analysis.export_analysis_to_word', channel_id=channel_data.id) }}" class="flex-1 sm:flex-initial text-center bg-brand-blue text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-brand-blue/90" title="Export channel analysis overview to Word document">
+                               <i class="fa-solid fa-file-word mr-2"></i>Export Word
+                            </a>
+                        </div>
+                     </div>
+                     <div class="flex items-center gap-2 flex-wrap border-t border-border pt-4">
+                        <span class="text-sm font-semibold text-muted-foreground mr-2">Filter by:</span>
+                        <button @click="activeVideoType = 'all'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoType === 'all', 'bg-secondary hover:bg-border': activeVideoType !== 'all' }">All Videos</button>
+                        <button @click="activeVideoType = 'long'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoType === 'long', 'bg-secondary hover:bg-border': activeVideoType !== 'long' }">Long Videos</button>
+                        <button @click="activeVideoType = 'shorts'" class="text-xs font-semibold px-3 py-1 rounded-full transition-colors" :class="{ 'bg-primary text-primary-foreground': activeVideoType === 'shorts', 'bg-secondary hover:bg-border': activeVideoType !== 'shorts' }">Shorts</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <template x-for="video in displayedVideos" :key="video.id">
+                         <div class="group relative bg-card p-3 rounded-xl border shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 flex flex-col"
+                             x-data="{
+                                tooltip: { show: false, text: '' },
+                                showTooltip(text) { if (!text) return; this.tooltip.text = text; this.tooltip.show = true; },
+                                 hideTooltip() { this.tooltip.show = false; }
+                             }">
+                            <a :href="'{{ url_for('analysis.video_analysis', video_id='') }}' + video.id" class="block">
+                                <div class="relative">
+                                    <img :src="video.thumbnail" :alt="video.title" class="rounded-lg mb-2 w-full aspect-video object-cover">
+                                    <span x-show="video.is_short" class="absolute top-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm"><i class="fa-solid fa-bolt"></i> Short</span>
+                                </div>
+                            </a>
+                            <h4 class="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-primary flex-grow" x-text="video.title"></h4>
+
+                            <div class="text-xs text-muted-foreground mt-2 pt-2 border-t border-dashed space-y-1.5">
+                               <div class="flex justify-between items-center" @mouseenter="showTooltip(`Views: ${Number(video.view_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+                                     <span class="flex items-center gap-2">
+                                        {# --- बदलाव यहाँ: Icon Class बदला गया --- #}
+                                        <i class="fa-solid fa-eye fa-fw w-4 text-center"></i>
+                                        <span>Views:</span>
+                                    </span>
+                                    <span class="font-semibold text-foreground" x-text="Number(video.view_count).toLocaleString()"></span>
+                                </div>
+                                <div class="flex justify-between items-center" @mouseenter="showTooltip(`Likes: ${Number(video.like_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+                                     <span class="flex items-center gap-2">
+                                        {# --- बदलाव यहाँ: Icon Class बदला गया, text-red-500 हटाया गया --- #}
+                                        <i class="fa-solid fa-thumbs-up fa-fw w-4 text-center"></i>
+                                        <span>Likes:</span>
+                                    </span>
+                                     <span class="font-semibold text-foreground" x-text="Number(video.like_count).toLocaleString()"></span>
+                                </div>
+                                <div class="flex justify-between items-center" @mouseenter="showTooltip(`Comments: ${Number(video.comment_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+                                     <span class="flex items-center gap-2">
+                                        <i class="fa-solid fa-comments fa-fw w-4 text-center text-green-500"></i>
+                                        <span>Comments:</span>
+                                    </span>
+                                    <span class="font-semibold text-foreground" x-text="Number(video.comment_count).toLocaleString()"></span>
+                                </div>
+                                <div class="flex justify-between items-center" @mouseenter="showTooltip(`Full Timestamp: ${new Date(video.upload_date).toLocaleString()}`)" @mouseleave="hideTooltip()">
+                                    <span class="flex items-center gap-2">
+                                         <i class="fa-solid fa-calendar-days fa-fw w-4 text-center"></i>
+                                        <span>Uploaded:</span>
+                                     </span>
+                                     <span class="font-semibold text-foreground" x-text="formatCustomDateTime(video.upload_date)"></span>
+                                </div>
+                             </div>
+
+                               {# Tooltip Div remains the same #}
+                               <div x-show="tooltip.show" x-transition
+                                     class="absolute z-20 px-3 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg shadow-lg whitespace-nowrap"
+                                 :style="`bottom: 105%; left: 50%; transform: translateX(-50%);`"
+                                 x-text="tooltip.text">
+                                </div>
+                        </div>
+                    </template>
+                </div>
+                 <div class="text-center">
+                    <button x-show="showLoadMoreButton()" @click="loadMoreVideos()" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        Load More Videos
+                     </button>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'playlists'" x-transition class="space-y-6">
+                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {% for playlist in playlists %}
+                        <a href="https://www.youtube.com/playlist?list={{ playlist.id }}" target="_blank" class="group block bg-card p-4 rounded-xl border shadow-sm hover:border-primary transition-all">
+                            <div class="relative">
+                                <img src="{{ playlist.thumbnail or 'https://via.placeholder.com/1280x720/E8E8E8/999999?text=No+Thumbnail' }}" alt="{{ playlist.title }}" class="rounded-lg mb-3 w-full aspect-video object-cover">
+                                <div class="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm"><i class="fa-solid fa-list-ol mr-1.5"></i> {{ playlist.video_count }} Videos</div>
+                             </div>
+                            <h4 class="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-primary">{{ playlist.title }}</h4>
+                        </a>
+                    {% else %}
+                         <p class="text-muted-foreground col-span-full text-center py-8">No public playlists found for this channel.</p>
+                    {% endfor %}
+                 </div>
+            </div>
+        </div>
+
+        {# Export Modal remains the same #}
+        <div x-show="showExportModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @keydown.escape.window="showExportModal = false" x-cloak>
+            <div @click.away="showExportModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-md mx-4">
+                 <div class="p-5 border-b border-border flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-foreground">Select Columns to Export</h3>
+                    <button @click="showExportModal = false" class="text-muted-foreground hover:text-foreground">&times;</button>
+                </div>
+                 <div class="p-6 max-h-80 overflow-y-auto">
+                    <div class="grid grid-cols-2 gap-4">
+                        <template x-for="option in exportOptions" :key="option.key">
+                             <label class="flex items-center space-x-3 bg-secondary p-3 rounded-lg">
+                                 <input type="checkbox" x-model="option.selected" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
+                                <span class="text-sm font-medium text-foreground" x-text="option.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                 <div class="px-6 py-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" @click="showExportModal = false" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+                    <a :href="generateExportUrl()" @click="if (generateExportUrl() === 'javascript:void(0)') { alert('Please select at least one column.'); return; } showExportModal = false"
+                        class="px-5 py-2 rounded-lg text-sm font-semibold bg-brand-green text-white hover:bg-brand-green/90">
+                       <i class="fa-solid fa-download mr-2"></i>Download Excel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="text-center py-20"><i class="fa-solid fa-circle-exclamation text-4xl text-destructive"></i><p class="mt-4 text-muted-foreground">Could not load channel analysis. The API quota might be exceeded.</p></div>
+    {% endif %}
+
+    <div class="mt-8 mb-4 p-3 text-xs rounded-lg bg-blue-500/10 text-blue-700 border border-blue-500/20 flex items-center gap-2">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>Note: This comprehensive report is generated using multiple YouTube API calls and contributes to the application's daily quota usage.</span>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('deepAnalysisDashboard', () => ({
+        activeTab: 'overview',
+        activeVideoSort: 'recent',
+        activeVideoType: 'all',
+
+        allVideos: [],
+        videosToShow: 20,
+
+        topTags: {{ top_tags|tojson|safe }},
+        channelKeywords: {{ channel_keywords|tojson|safe }},
+        maxTagCount: 1,
+
+        showExportModal: false,
+        exportOptions: [
+            { key: 'title', label: 'Video Title', selected: true },
+            { key: 'video_url', label: 'Video URL', selected: true },
+            { key: 'upload_date', label: 'Upload Date', selected: true },
+            { key: 'view_count', label: 'Views', selected: true },
+            { key: 'like_count', label: 'Likes', selected: false },
+            { key: 'comment_count', label: 'Comments', selected: false },
+            { key: 'duration_seconds', label: 'Duration (Seconds)', selected: false },
+        ],
+
+        init() {
+            const recentVideos = {{ recent_videos_json | safe }};
+            const mostViewedVideos = {{ most_viewed_videos_json | safe }};
+            const allVids = [...recentVideos, ...mostViewedVideos];
+            const uniqueVidsMap = new Map(allVids.map(v => [v.id, v]));
+            this.allVideos = Array.from(uniqueVidsMap.values());
+
+            if (this.topTags.length > 0) {
+                this.maxTagCount = this.topTags.reduce((max, tag) => tag[1] > max ? tag[1] : max, 0);
+                if (this.maxTagCount === 0) this.maxTagCount = 1;
+            }
+
+             this.$watch('activeTab', (value) => {
+                if(value === 'overview') { this.$nextTick(() => this.renderAllCharts()); }
+            });
+            this.renderAllCharts();
+        },
+
+        // ========= नया फंक्शन यहाँ जोड़ा गया है START =========
+        formatCustomDateTime(isoDate) {
+            if (!isoDate) return '';
+            const date = new Date(isoDate);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            return `${day} ${month} ${year} ${time}`;
+        },
+        // ========= नया फंक्शन यहाँ जोड़ा गया है END =========
+
+        copyTagsToClipboard(tags, buttonEl) {
+            if (!tags || tags.length === 0) return;
+            const textToCopy = tags.join(', ');
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                 const originalText = buttonEl.innerHTML;
+                buttonEl.textContent = 'Copied!';
+                setTimeout(() => {
+                    buttonEl.textContent = 'Copy All';
+                }, 2000);
+            });
+        },
+
+        renderAllCharts() {
+            this.initUploadChart();
+            this.initUploadsByDayChart();
+            this.initUploadsByHourChart();
+        },
+
+        get sortedAndFilteredVideos() {
+            let sourceList = [...this.allVideos];
+            if (this.activeVideoSort === 'recent') {
+                sourceList.sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+            } else if (this.activeVideoSort === 'views') {
+                 sourceList.sort((a, b) => b.view_count - a.view_count);
+            } else if (this.activeVideoSort === 'comments') {
+                sourceList.sort((a, b) => b.comment_count - a.comment_count);
+            }
+
+            if (this.activeVideoType === 'long') {
+                sourceList = sourceList.filter(v => !v.is_short);
+            } else if (this.activeVideoType === 'shorts') {
+                 sourceList = sourceList.filter(v => v.is_short);
+            }
+
+            return sourceList;
+        },
+
+        get displayedVideos() {
+            return this.sortedAndFilteredVideos.slice(0, this.videosToShow);
+        },
+
+        showLoadMoreButton() {
+            return this.videosToShow < this.sortedAndFilteredVideos.length;
+        },
+
+        loadMoreVideos() {
+            this.videosToShow += 20;
+        },
+
+        generateExportUrl() {
+            const baseUrl = `{{ url_for('analysis.export_channel_videos_to_excel', channel_id=channel_data.id) }}`;
+            const selected = this.exportOptions.filter(opt => opt.selected).map(opt => `columns=${opt.key}`);
+            if (selected.length === 0) {
+                return 'javascript:void(0)';
+            }
+            return `${baseUrl}?${selected.join('&')}`;
+        },
+
+         initUploadChart() {
+            const ctx = document.getElementById('uploadChart');
+            if (!ctx || Chart.getChart(ctx)) return;
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: {{ upload_labels | safe }},
+                    datasets: [{
+                        label: 'Videos Uploaded', data: {{ upload_data | safe }},
+                        backgroundColor: 'rgba(126, 34, 206, 0.5)', borderColor: 'rgba(126, 34, 206, 1)',
+                        borderWidth: 1, borderRadius: 4,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+            });
+        },
+
+         initUploadsByDayChart() {
+            const ctx = document.getElementById('uploadsByDayChart');
+            if (!ctx || Chart.getChart(ctx)) return;
+            const schedule = {{ upload_schedule_json | safe }};
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Uploads', data: schedule.by_day,
+                        backgroundColor: 'rgba(22, 163, 74, 0.5)', borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1, borderRadius: 4,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+            });
+        },
+
+        initUploadsByHourChart() {
+            const ctx = document.getElementById('uploadsByHourChart');
+            if (!ctx || Chart.getChart(ctx)) return;
+            const schedule = {{ upload_schedule_json | safe }};
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                   labels: Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')),
+                    datasets: [{
+                        label: 'Uploads', data: schedule.by_hour,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)',
+                         borderWidth: 1, borderRadius: 4,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+            });
+        }
+    }));
+});
+</script>
+{% endblock %}

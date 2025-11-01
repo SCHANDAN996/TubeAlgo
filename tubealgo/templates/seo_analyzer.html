@@ -1,0 +1,708 @@
+<!-- tubealgo/templates/seo_analyzer.html -->
+{% extends "app_layout.html" %}
+
+{% block title %}YouTube SEO Score Analyzer - TubeAlgo{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8" x-data="seoAnalyzer()">
+    
+    <!-- Header Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-purple-100 dark:border-gray-700">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-green-600 bg-clip-text text-transparent mb-2">
+                        🎯 SEO Score Analyzer
+                    </h1>
+                    <p class="text-gray-600 dark:text-gray-300 text-lg">
+                        Apne video ka complete SEO analysis aur improvement suggestions
+                    </p>
+                </div>
+                
+                <!-- Channel Overview Button -->
+                <button @click="showChannelOverview = true; loadChannelOverview()" 
+                        class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:shadow-lg transition-all duration-200">
+                    📊 Channel Overview
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Input Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+            
+            <!-- Tabs -->
+            <div class="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
+                <button @click="activeTab = 'single'" 
+                        :class="activeTab === 'single' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
+                        class="px-4 py-3 font-semibold transition-colors">
+                    Single Video
+                </button>
+                <button @click="activeTab = 'bulk'" 
+                        :class="activeTab === 'bulk' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
+                        class="px-4 py-3 font-semibold transition-colors">
+                    Bulk Analysis
+                </button>
+                <button @click="activeTab = 'compare'" 
+                        :class="activeTab === 'compare' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
+                        class="px-4 py-3 font-semibold transition-colors">
+                    Compare Videos
+                </button>
+            </div>
+
+            <!-- Single Video Analysis -->
+            <div x-show="activeTab === 'single'" x-transition>
+                <div class="flex gap-4">
+                    <input type="text" 
+                           x-model="videoId"
+                           @keyup.enter="analyzeSingleVideo()"
+                           placeholder="Video ID ya YouTube URL daalen"
+                           class="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    
+                    <button @click="analyzeSingleVideo()" 
+                            :disabled="analyzing || !videoId"
+                            class="px-8 py-3 bg-gradient-to-r from-purple-600 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <span x-show="!analyzing">🔍 Analyze</span>
+                        <span x-show="analyzing">
+                            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Analyzing...
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Recent Videos Quick Select -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-3">🎬 Recent Videos:</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% for video in videos[:6] %}
+                        <div @click="videoId = '{{ video.video_id }}'; analyzeSingleVideo()" 
+                             class="cursor-pointer p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-purple-50 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600">
+                            <div class="flex gap-3">
+                                <img src="{{ video.thumbnail_url }}" 
+                                     alt="Thumbnail" 
+                                     class="w-24 h-16 object-cover rounded">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                        {{ video.title }}
+                                    </p>
+                                    {% if video.seo_score %}
+                                    <span class="inline-block mt-1 px-2 py-1 text-xs rounded-full 
+                                        {% if video.seo_score >= 80 %}bg-green-100 text-green-700{% elif video.seo_score >= 60 %}bg-yellow-100 text-yellow-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                        {{ video.seo_grade }} - {{ video.seo_score }}
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-block mt-1 px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded-full">
+                                        Not Analyzed
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Analysis Tab -->
+            <div x-show="activeTab === 'bulk'" x-transition>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Video IDs (ek line mein ek ID)
+                        </label>
+                        <textarea x-model="bulkVideoIds"
+                                  rows="5"
+                                  placeholder="dQw4w9WgXcQ&#10;abc123xyz&#10;..."
+                                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-purple-500"></textarea>
+                    </div>
+                    
+                    <button @click="analyzeBulkVideos()" 
+                            :disabled="analyzing || !bulkVideoIds"
+                            class="w-full px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!analyzing">📊 Analyze All Videos</span>
+                        <span x-show="analyzing">Processing...</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Compare Videos Tab -->
+            <div x-show="activeTab === 'compare'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Video 1 ID
+                        </label>
+                        <input type="text" 
+                               x-model="compareVideo1"
+                               placeholder="First video ID"
+                               class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Video 2 ID
+                        </label>
+                        <input type="text" 
+                               x-model="compareVideo2"
+                               placeholder="Second video ID"
+                               class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:ring-2 focus:ring-purple-500">
+                    </div>
+                </div>
+                
+                <button @click="compareVideos()" 
+                        :disabled="analyzing || !compareVideo1 || !compareVideo2"
+                        class="mt-4 w-full px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50">
+                    <span x-show="!analyzing">⚖️ Compare Videos</span>
+                    <span x-show="analyzing">Comparing...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div x-show="showResults" x-transition class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- SEO Score Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-6 border border-gray-100 dark:border-gray-700">
+            
+            <!-- Video Info -->
+            <div class="flex items-start gap-6 mb-8">
+                <img :src="currentAnalysis.video?.thumbnail" 
+                     alt="Thumbnail" 
+                     class="w-48 h-28 object-cover rounded-lg">
+                
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2" x-text="currentAnalysis.video?.title"></h2>
+                    <a :href="currentAnalysis.video?.url" 
+                       target="_blank"
+                       class="text-purple-600 hover:text-purple-700 text-sm">
+                        🔗 View on YouTube
+                    </a>
+                </div>
+
+                <!-- Score Display -->
+                <div class="text-center">
+                    <div class="relative w-32 h-32">
+                        <!-- Circular Progress -->
+                        <svg class="transform -rotate-90 w-32 h-32">
+                            <circle cx="64" cy="64" r="56" 
+                                    stroke="currentColor" 
+                                    stroke-width="8" 
+                                    fill="none"
+                                    class="text-gray-200 dark:text-gray-700"></circle>
+                            <circle cx="64" cy="64" r="56" 
+                                    stroke="currentColor" 
+                                    stroke-width="8" 
+                                    fill="none"
+                                    :stroke-dasharray="circumference"
+                                    :stroke-dashoffset="circumference - (currentAnalysis.seo_analysis?.score / 100) * circumference"
+                                    :class="getScoreColor(currentAnalysis.seo_analysis?.score)"
+                                    class="transition-all duration-1000"></circle>
+                        </svg>
+                        
+                        <!-- Score Text -->
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div class="text-3xl font-bold" x-text="currentAnalysis.seo_analysis?.score"></div>
+                            <div class="text-xs text-gray-500">out of 100</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Grade Badge -->
+                    <div class="mt-4">
+                        <span class="inline-block px-4 py-2 rounded-full text-lg font-bold"
+                              :class="getGradeBadgeClass(currentAnalysis.seo_analysis?.score)"
+                              x-text="currentAnalysis.seo_analysis?.grade"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strengths & Weaknesses -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Strengths -->
+                <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
+                    <h3 class="font-bold text-green-800 dark:text-green-400 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">✅</span>
+                        Strengths
+                    </h3>
+                    <ul class="space-y-2">
+                        <template x-for="strength in currentAnalysis.seo_analysis?.strengths" :key="strength">
+                            <li class="text-green-700 dark:text-green-300 text-sm flex items-start gap-2">
+                                <span>•</span>
+                                <span x-text="strength"></span>
+                            </li>
+                        </template>
+                        <li x-show="!currentAnalysis.seo_analysis?.strengths?.length" 
+                            class="text-green-700 dark:text-green-300 text-sm italic">
+                            No major strengths identified yet
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Weaknesses -->
+                <div class="bg-red-50 dark:bg-red-900/20 rounded-xl p-6">
+                    <h3 class="font-bold text-red-800 dark:text-red-400 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">⚠️</span>
+                        Areas for Improvement
+                    </h3>
+                    <ul class="space-y-2">
+                        <template x-for="weakness in currentAnalysis.seo_analysis?.weaknesses" :key="weakness">
+                            <li class="text-red-700 dark:text-red-300 text-sm flex items-start gap-2">
+                                <span>•</span>
+                                <span x-text="weakness"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Score Breakdown -->
+            <div class="mb-8">
+                <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-4">📊 Score Breakdown</h3>
+                <div class="space-y-4">
+                    <template x-for="(data, category) in currentAnalysis.seo_analysis?.breakdown" :key="category">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-medium text-gray-700 dark:text-gray-300 capitalize" x-text="category"></span>
+                                <span class="text-sm text-gray-600 dark:text-gray-400">
+                                    <span x-text="data.score"></span> / <span x-text="data.max"></span>
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                                <div class="h-3 rounded-full transition-all duration-500"
+                                     :style="`width: ${(data.score / data.max) * 100}%`"
+                                     :class="getBarColor((data.score / data.max) * 100)"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div>
+                <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-4">💡 Priority Recommendations</h3>
+                
+                <!-- Priority Actions -->
+                <div class="space-y-3 mb-6">
+                    <template x-for="(rec, index) in currentAnalysis.seo_analysis?.priority_actions" :key="index">
+                        <div class="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl p-4 border-l-4"
+                             :class="getPriorityBorderClass(rec.priority)">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl" x-text="getPriorityIcon(rec.priority)"></span>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs font-bold uppercase px-2 py-1 rounded"
+                                              :class="getPriorityBadgeClass(rec.priority)"
+                                              x-text="rec.priority"></span>
+                                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300" 
+                                              x-text="rec.category"></span>
+                                    </div>
+                                    <p class="text-gray-700 dark:text-gray-300 mb-2" x-text="rec.message"></p>
+                                    
+                                    <!-- Examples if available -->
+                                    <div x-show="rec.examples">
+                                        <button @click="rec.showExamples = !rec.showExamples" 
+                                                class="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                                            <span x-show="!rec.showExamples">Show examples ▼</span>
+                                            <span x-show="rec.showExamples">Hide examples ▲</span>
+                                        </button>
+                                        <div x-show="rec.showExamples" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                            <span class="font-medium">Examples:</span>
+                                            <span x-text="Array.isArray(rec.examples) ? rec.examples.join(', ') : rec.examples"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- All Recommendations (Collapsible) -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <button @click="showAllRecommendations = !showAllRecommendations" 
+                            class="flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium mb-4">
+                        <span x-show="!showAllRecommendations">Show All Recommendations ({{ currentAnalysis.seo_analysis?.recommendations?.length || 0 }}) ▼</span>
+                        <span x-show="showAllRecommendations">Hide Recommendations ▲</span>
+                    </button>
+                    
+                    <div x-show="showAllRecommendations" class="space-y-3">
+                        <template x-for="(rec, index) in currentAnalysis.seo_analysis?.recommendations" :key="index">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-sm font-medium text-gray-600 dark:text-gray-400" x-text="rec.category + ':'"></span>
+                                    <p class="flex-1 text-sm text-gray-700 dark:text-gray-300" x-text="rec.message"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button @click="exportReport()" 
+                        class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+                    📄 Export PDF Report
+                </button>
+                <button @click="optimizeWithAI()" 
+                        class="px-6 py-3 bg-gradient-to-r from-purple-600 to-green-600 text-white rounded-xl hover:shadow-lg transition-all">
+                    🤖 Get AI Optimization Suggestions
+                </button>
+                <button @click="analyzeSingleVideo(true)" 
+                        class="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors">
+                    🔄 Re-analyze
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Channel Overview Modal -->
+    <div x-show="showChannelOverview" 
+         x-transition
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+         @click.self="showChannelOverview = false">
+        
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
+             @click.stop>
+            
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">📊 Channel SEO Overview</h2>
+                <button @click="showChannelOverview = false" 
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-6" x-show="channelOverview">
+                
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl p-6">
+                        <div class="text-3xl font-bold text-purple-900 dark:text-purple-100" 
+                             x-text="channelOverview.total_videos_analyzed"></div>
+                        <div class="text-sm text-purple-700 dark:text-purple-300">Videos Analyzed</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl p-6">
+                        <div class="text-3xl font-bold text-green-900 dark:text-green-100" 
+                             x-text="channelOverview.average_score"></div>
+                        <div class="text-sm text-green-700 dark:text-green-300">Average Score</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl p-6">
+                        <div class="text-3xl font-bold text-blue-900 dark:text-blue-100" 
+                             x-text="channelOverview.highest_score"></div>
+                        <div class="text-sm text-blue-700 dark:text-blue-300">Highest Score</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/30 dark:to-red-800/30 rounded-xl p-6">
+                        <div class="text-3xl font-bold text-red-900 dark:text-red-100" 
+                             x-text="channelOverview.lowest_score"></div>
+                        <div class="text-sm text-red-700 dark:text-red-300">Lowest Score</div>
+                    </div>
+                </div>
+
+                <!-- Grade Distribution -->
+                <div class="mb-8">
+                    <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-4">Grade Distribution</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <template x-for="(count, grade) in channelOverview.grade_distribution" :key="grade">
+                            <div class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                                <span class="font-bold" x-text="grade"></span>:
+                                <span x-text="count"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Top Videos -->
+                <div class="mb-8">
+                    <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-4">🏆 Top Performing Videos</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <template x-for="video in channelOverview.top_videos" :key="video.id">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                                <img :src="video.thumbnail" 
+                                     alt="Thumbnail" 
+                                     class="w-full h-32 object-cover rounded mb-3">
+                                <p class="font-medium text-sm text-gray-900 dark:text-white mb-2 line-clamp-2" 
+                                   x-text="video.title"></p>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-2xl font-bold" 
+                                          :class="getScoreTextColor(video.score)"
+                                          x-text="video.score"></span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold"
+                                          :class="getGradeBadgeClass(video.score)"
+                                          x-text="video.grade"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Videos Needing Improvement -->
+                <div>
+                    <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-4">⚠️ Videos Needing Improvement</h3>
+                    <div class="space-y-3">
+                        <template x-for="video in channelOverview.videos_needing_improvement" :key="video.id">
+                            <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 flex items-center gap-4">
+                                <img :src="video.thumbnail" 
+                                     alt="Thumbnail" 
+                                     class="w-32 h-20 object-cover rounded">
+                                <div class="flex-1">
+                                    <p class="font-medium text-gray-900 dark:text-white mb-1" 
+                                       x-text="video.title"></p>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm text-red-600 dark:text-red-400 font-medium">
+                                            Score: <span x-text="video.score"></span>
+                                        </span>
+                                        <span class="px-2 py-1 bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 text-xs rounded" 
+                                              x-text="video.grade"></span>
+                                    </div>
+                                </div>
+                                <button @click="videoId = video.id; showChannelOverview = false; analyzeSingleVideo()" 
+                                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
+                                    Analyze Now
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function seoAnalyzer() {
+    return {
+        // State
+        activeTab: 'single',
+        videoId: '',
+        bulkVideoIds: '',
+        compareVideo1: '',
+        compareVideo2: '',
+        analyzing: false,
+        showResults: false,
+        showChannelOverview: false,
+        showAllRecommendations: false,
+        currentAnalysis: {},
+        channelOverview: null,
+        circumference: 2 * Math.PI * 56, // For circular progress
+        
+        // Methods
+        async analyzeSingleVideo(refresh = false) {
+            if (!this.videoId) return;
+            
+            this.analyzing = true;
+            this.showResults = false;
+            
+            try {
+                const response = await fetch('/api/seo/analyze-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({
+                        video_id: this.videoId,
+                        refresh: refresh
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.currentAnalysis = data;
+                    this.showResults = true;
+                    
+                    // Smooth scroll to results
+                    setTimeout(() => {
+                        document.querySelector('#results')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                } else {
+                    alert('Analysis failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to analyze video');
+            } finally {
+                this.analyzing = false;
+            }
+        },
+        
+        async analyzeBulkVideos() {
+            if (!this.bulkVideoIds) return;
+            
+            const videoIds = this.bulkVideoIds.split('\n').map(id => id.trim()).filter(id => id);
+            
+            if (videoIds.length === 0) {
+                alert('Please enter at least one video ID');
+                return;
+            }
+            
+            this.analyzing = true;
+            
+            try {
+                const response = await fetch('/api/seo/bulk-analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({
+                        video_ids: videoIds,
+                        limit: 10
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Analysis complete!\nSuccessful: ${data.summary.successful}\nFailed: ${data.summary.failed}\nAverage Score: ${data.summary.average_score}`);
+                    
+                    // Reload to show updated videos
+                    location.reload();
+                } else {
+                    alert('Bulk analysis failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to perform bulk analysis');
+            } finally {
+                this.analyzing = false;
+            }
+        },
+        
+        async compareVideos() {
+            if (!this.compareVideo1 || !this.compareVideo2) {
+                alert('Please enter both video IDs');
+                return;
+            }
+            
+            this.analyzing = true;
+            
+            try {
+                const response = await fetch('/api/seo/compare-videos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({
+                        video_id_1: this.compareVideo1,
+                        video_id_2: this.compareVideo2
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show comparison results (implement separate UI for this)
+                    console.log('Comparison:', data.comparison);
+                    alert('Comparison complete! Check console for details.');
+                } else {
+                    alert('Comparison failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to compare videos');
+            } finally {
+                this.analyzing = false;
+            }
+        },
+        
+        async loadChannelOverview() {
+            try {
+                const response = await fetch('/api/seo/channel-overview');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.channelOverview = data.overview;
+                } else {
+                    alert('Failed to load channel overview');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load channel overview');
+            }
+        },
+        
+        async exportReport() {
+            const videoId = this.currentAnalysis.video?.id;
+            if (!videoId) return;
+            
+            window.open(`/api/seo/export-report/${videoId}`, '_blank');
+        },
+        
+        async optimizeWithAI() {
+            alert('AI Optimization feature coming soon! 🤖');
+        },
+        
+        // Helper methods for styling
+        getScoreColor(score) {
+            if (score >= 80) return 'text-green-600';
+            if (score >= 60) return 'text-yellow-600';
+            if (score >= 40) return 'text-orange-600';
+            return 'text-red-600';
+        },
+        
+        getScoreTextColor(score) {
+            if (score >= 80) return 'text-green-700 dark:text-green-400';
+            if (score >= 60) return 'text-yellow-700 dark:text-yellow-400';
+            return 'text-red-700 dark:text-red-400';
+        },
+        
+        getGradeBadgeClass(score) {
+            if (score >= 80) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            if (score >= 60) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            if (score >= 40) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        },
+        
+        getBarColor(percentage) {
+            if (percentage >= 80) return 'bg-green-600';
+            if (percentage >= 60) return 'bg-yellow-600';
+            if (percentage >= 40) return 'bg-orange-600';
+            return 'bg-red-600';
+        },
+        
+        getPriorityIcon(priority) {
+            const icons = {
+                'critical': '🚨',
+                'high': '⚠️',
+                'medium': '💡',
+                'low': 'ℹ️'
+            };
+            return icons[priority] || '•';
+        },
+        
+        getPriorityBorderClass(priority) {
+            const classes = {
+                'critical': 'border-red-500',
+                'high': 'border-orange-500',
+                'medium': 'border-yellow-500',
+                'low': 'border-blue-500'
+            };
+            return classes[priority] || 'border-gray-300';
+        },
+        
+        getPriorityBadgeClass(priority) {
+            const classes = {
+                'critical': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                'high': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                'medium': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                'low': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+            };
+            return classes[priority] || 'bg-gray-100 text-gray-800';
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "yt_manager_layout.html" %}
+
+{% block manager_content %}
+
+<div x-data="playlistManager()">
+    <div class="bg-card p-6 rounded-xl border-2 border-dashed border-primary/50 mb-8 text-center">
+        <h2 class="text-2xl font-bold font-display text-foreground">Need Inspiration? ✨</h2>
+        <p class="text-muted-foreground mt-2 mb-4">Let our AI analyze your channel and competitors to suggest new playlists.</p>
+        <button @click="fetchSuggestions(false)" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+            <span x-text="cachedSuggestions ? 'View Suggestions' : 'Analyze & Suggest Playlists'"></span>
+        </button>
+    </div>
+
+    <div x-show="showCompetitorPrompt" x-transition class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div @click.away="showCompetitorPrompt = false" class="bg-card rounded-xl shadow-xl w-full max-w-md text-center p-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-brand-orange/10">
+                <i class="fa-solid fa-users text-brand-orange text-2xl"></i>
+            </div>
+            <div class="mt-4">
+                <h3 class="text-lg leading-6 font-bold text-foreground">Add Competitors First</h3>
+                <p class="text-sm text-muted-foreground mt-2" x-text="error"></p>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button @click="showCompetitorPrompt = false" type="button" class="flex-1 inline-flex justify-center rounded-lg shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border">Maybe Later</button>
+                <a :href="competitorActionUrl" class="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90">Add Competitors</a>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showSuggestions" x-transition class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div @click.away="showSuggestions = false" class="bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold">AI Playlist Suggestions</h3>
+                <div>
+                    <button @click="fetchSuggestions(true)" class="text-xs bg-secondary font-semibold px-3 py-1 rounded-full hover:bg-border" :disabled="isLoading">
+                        <span x-show="!isLoading"><i class="fa-solid fa-arrows-rotate mr-1"></i> Generate New</span>
+                        <span x-show="isLoading"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Generating...</span>
+                    </button>
+                    <button @click="showSuggestions = false" class="text-muted-foreground hover:text-foreground ml-2 text-xl">&times;</button>
+                </div>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <div x-show="isLoading" class="text-center py-8"><i class="fa-solid fa-spinner fa-spin text-4xl text-primary"></i><p class="mt-2 text-muted-foreground">Generating ideas...</p></div>
+                <div x-show="error && !showCompetitorPrompt" x-text="error" class="p-4 bg-destructive/10 text-destructive rounded-lg"></div>
+                
+                <div x-show="!isLoading && !error && suggestions.length === 0" class="text-center py-8">
+                    <p class="text-muted-foreground">AI could not generate new ideas at this time.</p>
+                    <p class="text-xs text-muted-foreground mt-1">Try adding more competitors or click "Generate New" again.</p>
+                </div>
+                <template x-for="suggestion in suggestions" :key="suggestion.title">
+                    <div class="bg-secondary p-4 rounded-lg">
+                        <h4 class="font-bold" x-text="suggestion.title"></h4>
+                        <p class="text-sm text-muted-foreground mt-1" x-text="suggestion.description"></p>
+                        <button @click="createPlaylistFromSuggestion(suggestion)" class="text-sm mt-3 bg-primary text-primary-foreground px-3 py-1 rounded-md font-semibold hover:bg-primary/90">Create this Playlist</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <a href="{{ url_for('playlist_manager.create_playlist_route') }}" class="bg-brand-green text-white px-5 py-2 rounded-lg font-semibold hover:bg-brand-green/90 transition-colors shadow-sm order-2 sm:order-1"><i class="fa-solid fa-plus mr-2"></i>Create New Playlist</a>
+        
+        <div class="order-1 sm:order-2">
+            <label for="sort" class="text-sm font-medium text-muted-foreground mr-2">Sort by:</label>
+            <select x-model="sortBy" id="sort" class="bg-card border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"><option value="newest">Newest First</option><option value="videos">Most Videos</option></select>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <template x-for="playlist in sortedPlaylists" :key="playlist.id">
+            <div class="bg-card rounded-xl border shadow-sm flex flex-col overflow-hidden group">
+                <div class="relative">
+                    <a :href="'/manage/playlists/edit/' + playlist.id">
+                        <img :src="playlist.thumbnail || 'https://via.placeholder.com/1280x720/E8E8E8/999999?text=No+Thumbnail'" :alt="playlist.title" class="w-full aspect-video object-cover">
+                    </a>
+                    <div class="absolute top-2 right-2 flex items-center gap-1">
+                        <template x-if="playlist.privacy_status === 'private'"><span class="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm"><i class="fa-solid fa-lock"></i> Private</span></template>
+                        <template x-if="playlist.privacy_status === 'unlisted'"><span class="bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm"><i class="fa-solid fa-link"></i> Unlisted</span></template>
+                    </div>
+                </div>
+                <div class="p-4 flex-grow flex flex-col">
+                    <h3 class="font-bold text-foreground leading-tight line-clamp-2" x-text="playlist.title"></h3>
+                    <p class="text-xs text-muted-foreground mt-1" x-text="'Created on ' + new Date(playlist.published_at).toLocaleDateString()"></p>
+                    <p class="text-sm text-muted-foreground mt-2 line-clamp-2 flex-grow" x-text="playlist.description || 'No description provided.'"></p>
+                    <div class="mt-4 flex-grow-0 grid grid-cols-2 gap-2 text-center text-sm border-t border-border pt-3">
+                        <div><p class="font-bold text-foreground" x-text="playlist.video_count.toLocaleString()"></p><p class="text-xs text-muted-foreground">Videos</p></div>
+                        <div><p class="font-bold text-foreground" x-text="playlist.privacy_status ? (playlist.privacy_status.charAt(0).toUpperCase() + playlist.privacy_status.slice(1)) : 'N/A'"></p><p class="text-xs text-muted-foreground">Status</p></div>
+                    </div>
+                    <a :href="'/manage/playlists/edit/' + playlist.id" class="mt-4 w-full bg-primary text-primary-foreground text-center py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors"><i class="fa-solid fa-pencil mr-2"></i>Edit</a>
+                </div>
+            </div>
+        </template>
+    </div>
+    <template x-if="sortedPlaylists.length === 0"><div class="text-center py-12 bg-card rounded-xl border border-dashed"><h3 class="text-xl font-semibold text-foreground">No playlists found</h3><p class="text-muted-foreground mt-2 max-w-md mx-auto">You haven't created any playlists yet.</p></div></template>
+</div>
+
+<script>
+    function playlistManager() {
+        return {
+            playlists: [],
+            sortBy: "newest",
+            showSuggestions: false,
+            suggestions: [],
+            isLoading: false,
+            error: null,
+            showCompetitorPrompt: false,
+            // --- यहाँ भी बदलाव किया गया है ---
+            competitorActionUrl: "{{ url_for('competitor.competitors', next=url_for('playlist_manager.manage_playlists')) }}",
+            csrfToken: "{{ form.csrf_token._value() }}",
+            cachedSuggestions: null,
+            createPlaylistUrl: "{{ url_for('playlist_manager.create_playlist_route') }}",
+
+            init() {
+                this.playlists = {{ playlists|tojson }};
+                this.loadFromCache();
+            },
+            loadFromCache() {
+                const cachedData = localStorage.getItem("playlist_suggestions");
+                if (cachedData) {
+                    this.cachedSuggestions = JSON.parse(cachedData);
+                    this.suggestions = this.cachedSuggestions;
+                }
+            },
+            fetchSuggestions(forceRefresh = false) {
+                this.error = null;
+                this.showCompetitorPrompt = false;
+
+                if (this.cachedSuggestions && !forceRefresh) {
+                    this.suggestions = this.cachedSuggestions;
+                    this.showSuggestions = true;
+                    return;
+                }
+
+                this.isLoading = true;
+                this.showSuggestions = true;
+                this.suggestions = [];
+
+                fetch("{{ url_for('playlist_manager.generate_playlist_ideas') }}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": this.csrfToken }
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(errorData => {
+                            if (errorData.error === "no_competitors") {
+                                this.showCompetitorPrompt = true;
+                                this.error = errorData.message;
+                                this.showSuggestions = false;
+                            } else {
+                                const message = (errorData.error && errorData.error.details) ? errorData.error.details : (errorData.error || `API request failed`);
+                                throw new Error(message);
+                            }
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data) return;
+                    if (data.error) {
+                        this.error = typeof data.error === 'object' ? data.error.details : data.error;
+                    } else {
+                        this.suggestions = data.suggestions || []; // Ensure suggestions is an array
+                        this.cachedSuggestions = data.suggestions || [];
+                        localStorage.setItem("playlist_suggestions", JSON.stringify(data.suggestions || []));
+                    }
+                })
+                .catch(err => {
+                    if(err) { // Avoid setting error if it was handled as no_competitors
+                        this.error = err.message;
+                    }
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
+            },
+            get sortedPlaylists() {
+                let sorted = [...this.playlists];
+                if (this.sortBy === "newest") {
+                    sorted.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+                } else if (this.sortBy === "videos") {
+                    sorted.sort((a, b) => b.video_count - a.video_count);
+                }
+                return sorted;
+            },
+            createPlaylistFromSuggestion(suggestion) {
+                const title = encodeURIComponent(suggestion.title);
+                const desc = encodeURIComponent(suggestion.description);
+                window.location.href = `${this.createPlaylistUrl}?title=${title}&desc=${desc}`;
+            }
+        }
+    }
+</script>
+
+{% endblock %}

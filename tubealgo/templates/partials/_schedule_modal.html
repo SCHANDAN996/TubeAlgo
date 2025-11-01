@@ -1,0 +1,81 @@
+<div x-show="showScheduleModal"
+     x-transition:enter="ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+     x-cloak>
+
+    <div @click.away="cancelSchedule()"
+         x-show="showScheduleModal"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="bg-card rounded-xl shadow-xl w-full max-w-md mx-4">
+
+        <div class="p-5 border-b border-border flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-foreground font-display" x-text="step === 'date' ? 'Select a Date' : 'Select a Time'"></h3>
+                <p class="text-sm text-muted-foreground" x-show="step === 'time'" x-text="formattedSelectedDate"></p>
+            </div>
+            <button type="button" @click="step = 'date'" x-show="step === 'time'" class="text-sm font-semibold text-primary hover:underline">
+                <i class="fa-solid fa-arrow-left mr-1"></i>Back
+            </button>
+        </div>
+
+        <div x-show="step === 'date'">
+            <div x-ref="flatpickr_container"></div>
+        </div>
+        
+        <div x-show="step === 'time'" class="p-4 space-y-4">
+            <div>
+                <label class="text-sm font-medium">Hour</label>
+                <div class="grid grid-cols-6 gap-2 mt-2">
+                    <template x-for="hour in hours">
+                        <button type="button" @click="selectedHour = hour"
+                                :class="selectedHour === hour ? 'time-button-active' : 'bg-secondary hover:bg-border'"
+                                class="p-2 rounded-md text-center font-mono text-sm transition-colors"
+                                x-text="hour"></button>
+                    </template>
+                </div>
+            </div>
+            <div>
+                <label class="text-sm font-medium">Minute</label>
+                <div class="grid grid-cols-6 gap-2 mt-2">
+                    <template x-for="minute in minutes">
+                        <button type="button" @click="selectedMinute = minute"
+                                :class="selectedMinute === minute ? 'time-button-active' : 'bg-secondary hover:bg-border'"
+                                class="p-2 rounded-md text-center font-mono text-sm transition-colors"
+                                x-text="minute"></button>
+                    </template>
+                </div>
+            </div>
+             <div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <template x-for="p in period">
+                        <button type="button" @click="selectedPeriod = p"
+                                :class="selectedPeriod === p ? 'time-button-active' : 'bg-secondary hover:bg-border'"
+                                class="p-2 rounded-md text-center font-mono text-sm transition-colors"
+                                x-text="p"></button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-6 py-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+            <button type="button" @click="cancelSchedule()"
+                    class="px-5 py-2.5 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border transition-colors">
+                Cancel
+            </button>
+            <button type="button" @click="confirmSchedule()"
+                    class="px-5 py-2.5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                Set Schedule
+            </button>
+        </div>
+    </div>
+</div>

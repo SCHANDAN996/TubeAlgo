@@ -1,0 +1,26 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 bg-brand-cyan/10 text-brand-cyan">
+            <i class="fa-solid fa-magnifying-glass-chart text-3xl"></i>
+        </div>
+        <h1 class="text-4xl font-bold text-foreground font-display">Video Analyzer</h1>
+        <p class="text-lg text-muted-foreground mt-2">Paste any YouTube video URL or ID for a deep analysis.</p>
+    </div>
+
+    <div class="bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+        <form method="POST" action="{{ url_for('tool.video_analyzer') }}">
+            
+            {{ form.hidden_tag() }}
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input type="text" name="video_url" class="flex-grow bg-background border border-input rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ" required>
+                <button type="submit" class="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                    <i class="fa-solid fa-magnifying-glass mr-2"></i>Analyze
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

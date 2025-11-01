@@ -1,0 +1,42 @@
+{% extends "admin/admin_layout.html" %}
+{% block title %}Cache Management{% endblock %}
+{% block header_title %}Cache Management{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-foreground">Manage API Cache</h2>
+        <p class="text-muted-foreground">Cached items are temporary and will be re-fetched after they expire or are cleared.</p>
+    </div>
+    <form action="{{ url_for('admin.clear_cache') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear the entire cache?');">
+        <button type="submit" class="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg font-semibold hover:bg-destructive/90">
+            <i class="fa-solid fa-trash-can mr-2"></i>Clear All Cache
+        </button>
+    </form>
+</div>
+
+<div class="bg-card rounded-lg border">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-secondary">
+                <tr>
+                    <th class="p-4 font-semibold">Cache Key</th>
+                    <th class="p-4 font-semibold">Expires At</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in cache_items %}
+                <tr class="border-t">
+                    <td class="p-4 font-mono text-xs text-muted-foreground break-all">{{ item.cache_key }}</td>
+                    <td class="p-4 whitespace-nowrap">{{ item.expires_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="2" class="p-6 text-center text-muted-foreground">The cache is currently empty.</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

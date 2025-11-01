@@ -1,0 +1,55 @@
+{# tubealgo/templates/admin/edit_plan.html #}
+
+{% extends "admin/admin_layout.html" %}
+{% block title %}Edit Plan{% endblock %}
+{% block header_title %}Edit Plan: {{ plan.name }}{% endblock %}
+
+{% block content %}
+<form method="POST" class="bg-card p-6 rounded-lg border space-y-4 max-w-2xl mx-auto">
+    {{ form.hidden_tag() }}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="font-medium text-sm">{{ form.price.label }}</label>
+            {{ form.price(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+        <div>
+            <label class="font-medium text-sm">{{ form.slashed_price.label }}</label>
+            {{ form.slashed_price(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+        <div>
+            <label class="font-medium text-sm">{{ form.competitors_limit.label }}</label>
+            {{ form.competitors_limit(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+        <div>
+            <label class="font-medium text-sm">{{ form.keyword_searches_limit.label }}</label>
+            {{ form.keyword_searches_limit(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+        <div>
+            <label class="font-medium text-sm">{{ form.ai_generations_limit.label }}</label>
+            {{ form.ai_generations_limit(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+        <div>
+            <label class="font-medium text-sm">{{ form.playlist_suggestions_limit.label }}</label>
+            {{ form.playlist_suggestions_limit(class="mt-1 block w-full border border-input rounded-md p-2") }}
+        </div>
+    </div>
+    <div class="space-y-2 pt-4">
+        <div class="flex items-center gap-3">
+            {{ form.has_discover_tools(class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary") }}
+            <label class="font-medium text-sm">{{ form.has_discover_tools.label }}</label>
+        </div>
+        <div class="flex items-center gap-3">
+            {{ form.has_ai_suggestions(class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary") }}
+            <label class="font-medium text-sm">{{ form.has_ai_suggestions.label }}</label>
+        </div>
+        <div class="flex items-center gap-3">
+            {{ form.has_comment_reply(class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary") }}
+            <label class="font-medium text-sm">{{ form.has_comment_reply.label }}</label>
+        </div>
+        </div>
+    <div class="text-right pt-4">
+        <a href="{{ url_for('admin.plans') }}" class="px-4 py-2 rounded-lg text-sm font-semibold hover:bg-secondary">Cancel</a>
+        <button type="submit" class="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Update Plan</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "yt_manager_layout.html" %}
+
+{% block manager_content %}
+<div x-data="abTestDashboard()">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Thumbnail A/B Tests</h2>
+        <button @click="showStartModal = true" class="bg-primary text-primary-foreground px-5 py-2 rounded-lg font-semibold hover:bg-primary/90">
+            <i class="fa-solid fa-plus mr-2"></i>Start New Test
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {% for test in tests %}
+         <div class="bg-card rounded-lg border flex flex-col shadow-sm">
+            <div class="p-4 border-b">
+                <h3 class="font-semibold text-foreground truncate" title="{{ test.video_title }}">{{ test.video_title }}</h3>
+                <p class="text-xs text-muted-foreground">Started on: {{ test.created_at.strftime('%d %b, %Y') }}</p>
+             </div>
+
+             <div class="grid grid-cols-2 gap-4 p-4">
+                <div>
+                    <img src="{{ url_for('static', filename=test.thumbnail_a_path) }}" alt="Thumbnail A" class="aspect-video object-cover rounded-md border">
+                    <p class="text-center font-bold text-sm mt-2">Thumbnail A</p>
+                    <p class="text-center text-xs font-mono">CTR: {{ '%.2f'|format(test.result_a_ctr) if test.result_a_ctr is not none else 'N/A' }}%</p>
+                </div>
+                <div>
+                    <img src="{{ url_for('static', filename=test.thumbnail_b_path) }}" alt="Thumbnail B" class="aspect-video object-cover rounded-md border">
+                    <p class="text-center font-bold text-sm mt-2">Thumbnail B</p>
+                    <p class="text-center text-xs font-mono">CTR: {{ '%.2f'|format(test.result_b_ctr) if test.result_b_ctr is not none else 'N/A' }}%</p>
+                </div>
+            </div>
+
+            <div class="p-4 mt-auto bg-secondary/50 rounded-b-lg space-y-2">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-semibold text-muted-foreground">Status:</span>
+                    <span class="capitalize font-bold px-2 py-1 text-xs rounded-full"
+                        :class="{
+                            'bg-yellow-100 text-yellow-800': '{{ test.status }}'.startsWith('running'),
+                            'bg-green-100 text-green-800': '{{ test.status }}' === 'completed',
+                            'bg-red-100 text-red-800': '{{ test.status }}'.startsWith('error'),
+                            'bg-gray-100 text-gray-800': '{{ test.status }}' === 'pending'
+                        }">{{ test.status.replace('_', ' ') }}</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-semibold text-muted-foreground">Winner:</span>
+                    <span class="font-bold text-lg uppercase text-primary">{{ test.winner or 'N/A' }}</span>
+                </div>
+                <div class="pt-2 text-right">
+                    <button @click="confirmDelete({{ test.id }})" class="text-xs text-destructive hover:underline font-semibold">Delete Test</button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-12 bg-card rounded-xl border border-dashed">
+            <h3 class="text-xl font-semibold text-foreground">No A/B Tests Found</h3>
+            <p class="text-muted-foreground mt-2">Click "Start New Test" to begin.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Start Test Modal #}
+    <div x-show="showStartModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @keydown.escape.window="showStartModal = false" x-cloak>
+        <div @click.away="showStartModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <form method="POST" action="{{ url_for('ab_test.start_test') }}" enctype="multipart/form-data" @submit="isSubmitting = true">
+                <div class="p-5 border-b"><h3 class="text-lg font-bold text-foreground">Start a New Thumbnail Test</h3></div>
+                 <div class="p-6 space-y-4 overflow-y-auto">
+                    <div>
+                        <label class="font-medium">1. Select a Video (Shorts are automatically filtered out)</label>
+                        <select name="video_id" required class="mt-1 block w-full bg-background border border-input rounded-lg p-3 text-sm">
+                            <option value="">-- Choose from your recent videos --</option>
+                            {% for video in videos %}
+                                <option value="{{ video.id }}">{{ video.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="font-medium">2. Upload Thumbnail A (Control)</label>
+                            <input type="file" name="thumbnail_a" required class="mt-1 block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+                        </div>
+                        <div>
+                            <label class="font-medium">3. Upload Thumbnail B (Variation)</label>
+                            <input type="file" name="thumbnail_b" required class="mt-1 block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" @click="showStartModal = false" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+                    <button type="submit" :disabled="isSubmitting" class="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center w-32 disabled:bg-primary/70">
+                        <span x-show="!isSubmitting">Start Test</span>
+                        <span x-show="isSubmitting">
+                            <i class="fa-solid fa-spinner animate-spin"></i>
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# --- Delete Confirmation Modal --- #}
+    {# --- बदलाव यहाँ: x-cloak जोड़ा गया --- #}
+    <div x-show="showDeleteModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @keydown.escape.window="showDeleteModal = false" x-cloak>
+        <div @click.away="showDeleteModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-md mx-4 text-center p-6">
+            <form :action="'/manage/ab-test/delete/' + testToDeleteId" method="POST" x-ref="deleteForm">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10"><i class="fa-solid fa-trash-can text-destructive text-xl"></i></div>
+                <div class="mt-4">
+                     <h3 class="text-lg font-bold text-foreground">Confirm Deletion</h3>
+                     <p class="text-sm text-muted-foreground mt-2">Are you sure you want to delete this test? The currently active thumbnail on YouTube will remain unchanged. This action cannot be undone.</p>
+                </div>
+                <div class="mt-6 flex gap-3">
+                    <button @click.prevent="showDeleteModal = false" type="button" class="flex-1 inline-flex justify-center rounded-lg shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border">Cancel</button>
+                    <button type="submit" class="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-destructive text-base font-medium text-white hover:bg-destructive/90">Yes, Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function abTestDashboard() {
+        return {
+            showStartModal: false,
+            showDeleteModal: false,
+            testToDeleteId: null,
+            isSubmitting: false,
+            confirmDelete(testId) {
+                this.testToDeleteId = testId;
+                this.showDeleteModal = true;
+            }
+        }
+    }
+</script>
+{% endblock %}

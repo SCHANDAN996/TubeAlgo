@@ -1,0 +1,32 @@
+<div x-show="showDescriptionModal" 
+     x-transition:enter="ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" 
+     @keydown.escape.window="showDescriptionModal = false"
+     x-cloak>
+
+    <div @click.away="showDescriptionModal = false" 
+         class="bg-card rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-lg font-bold">AI Generated Description</h2>
+            <button @click="showDescriptionModal = false" class="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
+        </div>
+        
+        <div class="p-6 flex-grow overflow-y-auto">
+            <textarea x-model="generatedDescription" class="w-full h-full min-h-[300px] bg-background border border-input rounded-lg p-3 text-sm"></textarea>
+        </div>
+
+        <div class="p-4 bg-secondary/50 rounded-b-xl flex justify-end gap-3">
+            <button type="button" @click="showDescriptionModal = false" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">
+                Cancel
+            </button>
+            <button type="button" @click="useDescription()" class="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+                <i class="fa-solid fa-check mr-2"></i>Use This Description
+            </button>
+        </div>
+    </div>
+</div>

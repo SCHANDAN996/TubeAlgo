@@ -1,0 +1,84 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div class="max-w-md mx-auto">
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-foreground font-display">Create Your Account</h1>
+        <p class="text-lg text-muted-foreground mt-2">Join TubeAlgo to start growing your channel.</p>
+    </div>
+
+    <div class="bg-card p-8 rounded-xl border shadow-sm">
+        <form method="POST" action="{{ url_for('auth_local.signup') }}" class="space-y-6" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div>
+                <label for="email" class="block text-sm font-medium text-foreground">Email Address</label>
+                <div class="mt-1">
+                    {{ form.email(class="block w-full bg-background border border-input rounded-lg p-3 focus:ring-primary focus:border-primary", placeholder="you@example.com") }}
+                    {% if form.email.errors %}
+                        {% for error in form.email.errors %}
+                            <p class="text-xs text-destructive mt-1">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-foreground">Password</label>
+                <div class="mt-1">
+                    {{ form.password(class="block w-full bg-background border border-input rounded-lg p-3 focus:ring-primary focus:border-primary", placeholder="••••••••") }}
+                    
+                    <p class="text-xs text-muted-foreground mt-2">
+                        Must be 8+ characters and include an uppercase letter, a lowercase letter, a number, and a special character.
+                    </p>
+                    {% if form.password.errors %}
+                        {% for error in form.password.errors %}
+                            <p class="text-xs text-destructive mt-1">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <label for="confirm_password" class="block text-sm font-medium text-foreground">Confirm Password</label>
+                <div class="mt-1">
+                    {{ form.confirm_password(class="block w-full bg-background border border-input rounded-lg p-3 focus:ring-primary focus:border-primary", placeholder="••••••••") }}
+                    {% if form.confirm_password.errors %}
+                        {% for error in form.confirm_password.errors %}
+                            <p class="text-xs text-destructive mt-1">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                {{ form.submit(class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer") }}
+            </div>
+        </form>
+
+        <div class="mt-6 relative">
+            <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-border"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+                <span class="px-2 bg-card text-muted-foreground">Or continue with</span>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <a href="{{ url_for('auth_google.google_login') }}" class="w-full inline-flex justify-center py-3 px-4 border border-border rounded-lg shadow-sm bg-background text-sm font-medium text-foreground hover:bg-secondary">
+                <svg class="w-5 h-5 mr-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 19">
+                    <path fill-rule="evenodd" d="M8.842 18.083a8.8 8.8 0 0 1-8.65-8.948 8.841 8.841 0 0 1 8.8-8.652h.153a8.464 8.464 0 0 1 5.7 2.257l-2.193 2.038A5.27 5.27 0 0 0 9.09 3.4a5.882 5.882 0 0 0-.2 11.76h.124a5.091 5.091 0 0 0 5.248-4.057L14.3 11H9V8h8.34c.066.543.095 1.09.088 1.636-.086 5.053-3.463 8.449-8.4 8.449l-.186-.002Z" clip-rule="evenodd"/>
+                </svg>
+                Sign up with Google
+            </a>
+        </div>
+
+        <p class="mt-6 text-center text-sm text-muted-foreground">
+            Already have an account? <a href="{{ url_for('auth_local.login') }}" class="font-medium text-primary hover:underline">
+                Log in
+            </a>
+        </p>
+    </div>
+</div>
+{% endblock %}

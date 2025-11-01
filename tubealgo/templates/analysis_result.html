@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-12">
+    <div class="max-w-4xl mx-auto bg-card p-6 sm:p-8 rounded-xl border shadow-sm">
+        {% if data and 'error' not in data %}
+            <div class="flex flex-col sm:flex-row items-center gap-6 mb-8">
+                <img src="{{ data['Thumbnail URL'] }}" alt="Channel Thumbnail" class="w-24 h-24 rounded-full border-4 border-secondary">
+                <div class="flex-grow text-center sm:text-left">
+                    <h1 class="text-3xl font-bold text-foreground">{{ data.Title }}</h1>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                <div class="bg-secondary p-4 rounded-lg">
+                    <div class="text-sm text-muted-foreground">Subscribers</div>
+                    <div class="text-2xl font-bold text-foreground">{{ "{:,.0f}".format(data.Subscribers) }}</div>
+                </div>
+                <div class="bg-secondary p-4 rounded-lg">
+                    <div class="text-sm text-muted-foreground">Total Views</div>
+                    <div class="text-2xl font-bold text-foreground">{{ "{:,.0f}".format(data['Total Views']) }}</div>
+                </div>
+                 <div class="bg-secondary p-4 rounded-lg">
+                    <div class="text-sm text-muted-foreground">Total Videos</div>
+                    <div class="text-2xl font-bold text-foreground">{{ "{:,.0f}".format(data['Video Count']) }}</div>
+                </div>
+            </div>
+        {% else %}
+             <div class="text-center">
+                <h1 class="text-3xl font-bold text-destructive">Analysis Failed</h1>
+                <p class="text-muted-foreground mt-2">{{ data.error or 'Could not find the channel. Please check the URL or handle.' }}</p>
+                <a href="{{ url_for('core.home') }}" class="mt-6 inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold">Go Back</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

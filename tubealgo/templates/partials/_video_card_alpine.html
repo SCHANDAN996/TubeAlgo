@@ -1,0 +1,104 @@
+<div class="group relative bg-card p-3 rounded-lg border shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 flex flex-col"
+     x-data="{
+         tooltip: { show: false, text: '' },
+         showTooltip(text) {
+             if (!text) return;
+             this.tooltip.text = text;
+             this.tooltip.show = true;
+         },
+         hideTooltip() {
+             this.tooltip.show = false;
+         }
+     }">
+
+    <a :href="'/video/' + video.id" class="block">
+        <div class="relative">
+             <img :src="video.thumbnail" :alt="video.title" class="rounded-md mb-2 w-full aspect-video object-cover">
+
+            {# Trending/Shorts Badges #}
+            <template x-if="video.trending_status">
+                <span class="absolute top-2 left-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm animate-pulse" x-text="video.trending_status"></span>
+             </template>
+            <template x-if="video.is_short">
+                 <span class="absolute top-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded-full backdrop-blur-sm"><i class="fa-solid fa-bolt"></i> Short</span>
+            </template>
+        </div>
+    </a>
+
+    {# Video Title #}
+    <h4 class="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-primary flex-grow" x-text="video.title"></h4>
+
+    {# Stats Section #}
+    <div class="text-xs text-muted-foreground mt-2 pt-2 border-t border-dashed space-y-1.5">
+
+         {# Views #}
+         <div class="flex justify-between items-center" @mouseenter="showTooltip(`Views: ${Number(video.view_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+             <span class="flex items-center gap-2">
+                <i class="fa-solid fa-eye fa-fw w-4 text-center"></i>
+                <span>Views:</span>
+            </span>
+            <span class="font-semibold text-foreground" x-text="Number(video.view_count).toLocaleString()"></span>
+        </div>
+
+         {# Likes #}
+         <div class="flex justify-between items-center" @mouseenter="showTooltip(`Likes: ${Number(video.like_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+             <span class="flex items-center gap-2">
+                <i class="fa-solid fa-thumbs-up fa-fw w-4 text-center"></i> {# Icon changed #}
+                <span>Likes:</span>
+            </span>
+             <span class="font-semibold text-foreground" x-text="Number(video.like_count).toLocaleString()"></span>
+        </div>
+
+        {# Comments #}
+        <div class="flex justify-between items-center" @mouseenter="showTooltip(`Comments: ${Number(video.comment_count).toLocaleString()}`)" @mouseleave="hideTooltip()">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-comments fa-fw w-4 text-center"></i> {# Color class removed #}
+                <span>Comments:</span>
+            </span>
+             <span class="font-semibold text-foreground" x-text="Number(video.comment_count).toLocaleString()"></span>
+        </div>
+
+        {# Upload Time #}
+        <div class="flex justify-between items-center" @mouseenter="showTooltip(`Uploaded: ${new Date(video.upload_date).toLocaleString()}`)" @mouseleave="hideTooltip()">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days fa-fw w-4 text-center"></i>
+                <span>Time:</span>
+            </span>
+             <span class="font-semibold text-foreground" x-text="formatRelativeTimeAlpine(video.upload_date)"></span>
+        </div>
+
+    </div>
+
+    {# Action Button (Add to Planner) #}
+    <div class="mt-2 pt-2 border-t border-border grid grid-cols-1 gap-2">
+        <button @click.prevent="addIdeaToPlanner(video)"
+                class="w-full text-xs font-semibold py-1.5 rounded-md transition-colors flex items-center justify-center gap-2"
+                :disabled="ideaGenerationStatus[video.id] === 'loading' || ideaGenerationStatus[video.id] === 'success'"
+                :class="{
+                    'bg-primary/10 text-primary hover:bg-primary/20': !ideaGenerationStatus[video.id],
+                    'bg-gray-200 text-gray-500 cursor-wait': ideaGenerationStatus[video.id] === 'loading',
+                    'bg-green-100 text-green-700 cursor-not-allowed': ideaGenerationStatus[video.id] === 'success',
+                    'bg-red-100 text-red-700': ideaGenerationStatus[video.id] === 'error'
+                }">
+            <template x-if="ideaGenerationStatus[video.id] === 'loading'">
+                <span><i class="fa-solid fa-spinner fa-spin"></i> ...</span>
+            </template>
+            <template x-if="ideaGenerationStatus[video.id] === 'success'">
+                 <span><i class="fa-solid fa-check"></i> Added!</span>
+            </template>
+            <template x-if="ideaGenerationStatus[video.id] === 'error'">
+                <span><i class="fa-solid fa-times"></i> Error</span>
+            </template>
+            <template x-if="!ideaGenerationStatus[video.id]">
+                <span><i class="fa-solid fa-plus"></i> To Planner</span>
+            </template>
+        </button>
+    </div>
+
+    {# Tooltip Element #}
+    <div x-show="tooltip.show" x-transition
+         class="absolute z-20 px-3 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg shadow-lg whitespace-nowrap"
+         :style="`bottom: 105%; left: 50%; transform: translateX(-50%);`"
+         x-text="tooltip.text">
+    </div>
+</div>

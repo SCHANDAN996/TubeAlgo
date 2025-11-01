@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block title %}Terms of Service - TubeAlgo{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-16">
+    <div class="max-w-4xl mx-auto bg-card p-8 md:p-12 rounded-xl border shadow-sm">
+        <article class="prose dark:prose-invert">
+            <h1>Terms of Service</h1>
+            <p><strong>Last updated:</strong> October 23, 2025</p>
+            <p>Welcome to TubeAlgo ("we", "us", "our"). By accessing or using our website and services (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of the terms, you may not access the Service.</p>
+            
+            <h2>1. Relationship with YouTube</h2>
+            <p><strong>TubeAlgo is an independent service and is not affiliated with, sponsored by, or endorsed by YouTube or Google.</strong> Our Service utilizes YouTube API Services to provide its features. By using TubeAlgo, you acknowledge and agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a>.</p>
+
+            <h2>2. User Accounts</h2>
+            <p>When you create an account with us, you must provide information that is accurate, complete, and current at all times. You are responsible for safeguarding the password that you use to access the Service and for any activities or actions under your password. You agree not to disclose your password to any third party and must notify us immediately upon becoming aware of any breach of security or unauthorized use of your account.</p>
+
+            <h2>3. Subscriptions and Payments</h2>
+            <p>Some parts of the Service are billed on a subscription basis ("Subscription(s)"). You will be billed in advance on a recurring and periodic basis ("Billing Cycle"). Your Subscription will automatically renew under the exact same conditions unless you cancel it or we cancel it. You may cancel your Subscription renewal at any time through your account settings. All payments are processed through a third-party payment gateway. For details on refunds, please review our <a href="{{ url_for('core.refund_policy') }}">Refund Policy</a>.</p>
+
+            <h2>4. Prohibited Activities</h2>
+            <p>You agree not to use the Service for any purpose that is illegal or prohibited by these Terms. You agree not to:</p>
+            <ul>
+                <li>Use the Service in any way that violates the YouTube Terms of Service or YouTube Community Guidelines.</li>
+                <li>Engage in any activity that interferes with or disrupts the Service or the servers and networks connected to the Service.</li>
+                <li>Use any data mining, robots, or similar data gathering or extraction methods in connection with the Service.</li>
+                <li>Attempt to reverse engineer, decompile, or otherwise discover the source code of the Service.</li>
+                <li>Automate or trigger actions on YouTube (e.g., views, likes, comments) without a user's prior, specific, and express consent.</li>
+            </ul>
+
+            <h2>5. Intellectual Property</h2>
+            <p>The Service and its original content (excluding data sourced from the YouTube API), features, and functionality are and will remain the exclusive property of TubeAlgo. Our trademarks may not be used in connection with any product or service without our prior written consent.</p>
+
+            <h2>6. Termination</h2>
+            <p>We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including, without limitation, if you breach the Terms. Upon termination, your right to use the Service will immediately cease.</p>
+
+            <h2>7. Disclaimer of Warranties</h2>
+            <p>The Service is provided on an "AS IS" and "AS AVAILABLE" basis. We do not warrant that the service will be uninterrupted, secure, or error-free. The data and analytics provided are for informational purposes only, and we do not guarantee any specific results for your YouTube channel. Please see our <a href="{{ url_for('core.data_disclaimer') }}">Data Disclaimer</a> for more information.</p>
+
+            <h2>8. Limitation of Liability</h2>
+            <p>In no event shall TubeAlgo, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.</p>
+
+            <h2>9. Governing Law</h2>
+            <p>These Terms shall be governed and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
+
+            <h2>10. Changes to Terms</h2>
+            <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.</p>
+
+            <h2>11. Contact Us</h2>
+            <p>If you have any questions about these Terms, please contact us at <a href="mailto:tubealgoofficial@gmail.com">tubealgoofficial@gmail.com</a>.</p>
+        </article>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,380 @@
+{% extends "app_layout.html" %}
+
+{% block app_content %}
+<div x-data="contentPlanner()"> {# Main Alpine component div #}
+    {{ form.hidden_tag() }} {# Keep Flask-WTF CSRF token #}
+
+    {# Page Header and Buttons #}
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-foreground font-display">Content Planner</h1>
+            <p class="text-muted-foreground mt-1">Organize your video ideas from concept to completion.</p>
+        </div>
+        {# Button Group #}
+        <div class="flex items-center gap-3">
+            <button @click="openGeneratorModal()" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-sm">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Generate Ideas with AI</span>
+            </button>
+            {# === यहाँ नया बटन जोड़ा गया है === #}
+            <button @click="openTranscriptModal()" class="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-5 py-2.5 rounded-lg font-semibold hover:bg-border transition-colors shadow-sm">
+                <i class="fa-brands fa-youtube"></i>
+                <span>Import from YouTube</span>
+            </button>
+        </div>
+    </div>
+
+    {# Planner Columns Grid (Original Structure) #}
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        <template x-for="column in plannerColumns" :key="column.id">
+            <div class="bg-card rounded-lg flex flex-col h-full border">
+                {# Column Header #}
+                <div class="sticky top-0 bg-card z-10 flex justify-between items-center p-3 border-b-4" :class="columnColors[column.id] || 'border-border'">
+                    <h3 class="font-semibold text-sm text-foreground" x-text="column.title"></h3>
+                    <span class="text-xs font-bold bg-secondary px-2.5 py-1.5 rounded-full text-muted-foreground flex items-center gap-1.5">
+                          <span x-text="column.icon"></span>
+                          <span x-text="plannerData[column.id]?.length || 0"></span>
+                    </span>
+                </div>
+
+                {# Column Body (Droppable Area) - Uses data-status for JS #}
+                <div class="p-3 space-y-3 flex-grow overflow-y-auto bg-secondary/50 min-h-[60vh]" :data-status="column.id">
+                    <template x-for="(idea, index) in plannerData[column.id]" :key="idea.id">
+                        {# Idea Card #}
+                        <div class="bg-card p-3 rounded-md shadow-sm text-sm group relative border hover:shadow-md hover:border-primary transition-all duration-200 flex flex-col" :data-id="idea.id">
+                            {# Card Clickable Area #}
+                            <div @click="editIdea(idea, column.id)" class="flex items-start gap-2 cursor-pointer">
+                                <i class="fa-solid fa-grip-vertical drag-handle text-muted-foreground/30 pt-1 cursor-grab group-hover:text-muted-foreground/80 transition-colors"></i>
+                                <span class="text-xs font-bold text-muted-foreground/50 pt-1" x-text="index + 1 + '.'"></span>
+                                <div class="flex-1 min-w-0"> {# Added min-w-0 for better text wrapping #}
+                                    <p class="font-medium text-foreground break-words" x-text="idea.display_title || idea.title"></p> {# Fallback + break-words #}
+                                </div>
+                            </div>
+
+                            {# Card Footer #}
+                            <div class="mt-2 pt-2 border-t border-dashed flex justify-between items-center h-8">
+                                <div class="flex-1 flex items-center gap-3">
+                                    <i x-show="idea.notes" @click.stop="editIdea(idea, column.id, 'write')" class="fa-solid fa-file-lines text-primary cursor-pointer hover:text-primary/80" title="Edit script/notes"></i>
+                                    {# Transcript icon removed #}
+                                </div>
+                                {# Action Buttons (Move/Delete) #}
+                                <div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <button x-show="column.id !== 'idea'" @click.stop="moveCard(idea, column.id, 'prev')" class="w-6 h-6 rounded-md text-muted-foreground/60 hover:bg-secondary hover:text-primary transition-colors flex items-center justify-center" title="Move Left"><i class="fa-solid fa-arrow-left text-xs"></i></button>
+                                    <button x-show="column.id !== 'scheduled'" @click.stop="moveCard(idea, column.id, 'next')" class="w-6 h-6 rounded-md text-muted-foreground/60 hover:bg-secondary hover:text-primary transition-colors flex items-center justify-center" title="Move Right"><i class="fa-solid fa-arrow-right text-xs"></i></button>
+                                    <button @click.stop="deleteIdea(idea.id, column.id)" class="w-6 h-6 rounded-md text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center justify-center" title="Delete Idea"><i class="fa-solid fa-times text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                     {# Placeholder when column is empty #}
+                    <div x-show="!plannerData[column.id] || plannerData[column.id].length === 0" class="text-center text-xs text-muted-foreground py-4">
+                        Drag ideas here
+                    </div>
+                </div>
+
+                {# Add Idea Section (Only for 'idea' column) #}
+                <template x-if="column.id === 'idea'">
+                    <div class="p-3 mt-auto border-t">
+                        <div x-show="ideaEntryMode === 'button'">
+                            <button @click="ideaEntryMode = 'manual'; $nextTick(() => $refs.addIdeaInput?.focus())" class="w-full text-left text-sm p-2 rounded-md text-muted-foreground hover:bg-secondary transition-colors">
+                                <i class="fa-solid fa-plus mr-2"></i> Add an idea
+                            </button>
+                        </div>
+                        <div x-show="ideaEntryMode === 'manual'" x-trap.inert="ideaEntryMode === 'manual'"> {# Trap focus #}
+                            <textarea x-ref="addIdeaInput" x-model="newIdeaTitle"
+                                      @keydown.enter.prevent="addNewIdea()"
+                                      @keydown.escape.prevent="ideaEntryMode = 'button'; newIdeaTitle = ''"
+                                      @click.away="if(newIdeaTitle.trim() === '') { ideaEntryMode = 'button' }"
+                                      placeholder="Enter a title..."
+                                      class="w-full bg-background text-sm p-2 rounded-md border border-input focus:ring-primary focus:outline-none focus:border-primary" rows="3"></textarea>
+                            <div class="mt-2 flex items-center justify-end gap-2">
+                                <button @click="ideaEntryMode = 'button'; newIdeaTitle = ''" class="text-sm font-semibold px-3 py-1 hover:bg-secondary rounded-md">Cancel</button>
+                                <button @click="addNewIdea()" class="text-sm font-semibold px-3 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+
+    {# --- Modals --- #}
+
+    {# AI Generator Modal (Copied from original, ensure refs match JS) #}
+    <div x-show="isGeneratorOpen" x-transition.opacity class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 modal-overlay" x-cloak>
+        <div @click.away="isGeneratorOpen = false" class="bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col modal-content">
+            {# Step 1: Input Form #}
+            <div x-show="generatorStep === 'input'" class="flex flex-col h-full">
+                <div class="p-4 border-b flex-shrink-0">
+                    <h3 class="text-base font-bold text-foreground">Generate New AI Video Ideas</h3>
+                    <p class="text-xs text-muted-foreground">Tell the AI what you want to create.</p>
+                </div>
+                <div class="p-5 space-y-5 flex-grow overflow-y-auto">
+                    {# Topic Input #}
+                    <div class="space-y-1.5">
+                        <label class="font-medium text-sm text-foreground">Video Topic <span class="text-red-500">*</span></label>
+                        <input type="text" x-ref="generatorTopicInput" x-model="generatorTopic" class="w-full text-sm bg-background border border-input rounded-lg p-2.5 focus:ring-primary focus:border-primary" placeholder="e.g., how to fix a noisy fan">
+                    </div>
+                    {# Optional Details #}
+                    <div class="space-y-1.5">
+                        <label class="font-medium text-sm text-foreground">Optional Details</label>
+                        <textarea x-model="generatorDescription" rows="3" class="w-full text-sm bg-background border border-input rounded-lg p-2.5 focus:ring-primary focus:border-primary" placeholder="e.g., focus on simple home remedies for a table fan..."></textarea>
+                    </div>
+                    {# Video Type Buttons #}
+                    <div class="space-y-1.5">
+                        <label class="font-medium text-sm text-foreground">Video Type</label>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button @click="generatorVideoType = 'any'" :class="generatorVideoType === 'any' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-1.5 rounded-full text-xs transition-colors">Any Format</button>
+                            <button @click="generatorVideoType = 'long'" :class="generatorVideoType === 'long' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-1.5 rounded-full text-xs transition-colors">Long Video</button>
+                            <button @click="generatorVideoType = 'short'" :class="generatorVideoType === 'short' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-1.5 rounded-full text-xs transition-colors">Short Video</button>
+                        </div>
+                    </div>
+                    {# Language Buttons #}
+                    <div class="space-y-1.5">
+                        <label class="font-medium text-sm text-foreground">Language</label>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                            <button @click="generatorLanguage = 'English'" :class="generatorLanguage === 'English' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-2 rounded-lg text-xs transition-colors">English</button>
+                            <button @click="generatorLanguage = 'Hindi'" :class="generatorLanguage === 'Hindi' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-2 rounded-lg text-xs transition-colors">Hindi</button>
+                            <button @click="generatorLanguage = 'Mix'" :class="generatorLanguage === 'Mix' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-2 rounded-lg text-xs transition-colors">Mix (Hin+Eng)</button>
+                            <button @click="generatorLanguage = 'Hinglish'" :class="generatorLanguage === 'Hinglish' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-border'" class="font-semibold px-4 py-2 rounded-lg text-xs transition-colors">Hinglish</button>
+                        </div>
+                    </div>
+                    {# Generate Button #}
+                    <div class="pt-4 flex justify-end">
+                        <button @click="fetchGeneratedIdeas()" class="px-5 py-2 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isGeneratorLoading">
+                            <span x-show="isGeneratorLoading"><i class="fa-solid fa-spinner animate-spin"></i> Generating...</span>
+                            <span x-show="!isGeneratorLoading"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Ideas</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {# Step 2: Results View #}
+            <div x-show="generatorStep === 'results'" class="flex flex-col flex-grow min-h-0">
+                {# Results Header #}
+                <div class="p-4 border-b flex-shrink-0">
+                    <div class="flex justify-between items-start gap-4">
+                        <div>
+                            <h3 class="text-lg font-bold" x-text="generatedIdeas.length > 0 ? `AI Idea ${currentIdeaIndex + 1} of ${generatedIdeas.length}` : 'Generating...'"></h3>
+                            <p class="text-sm text-muted-foreground" x-text="generatorTopic"></p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                            {# Regenerate language buttons #}
+                            <button @click="fetchGeneratedIdeas(true, 'English')" :disabled="isGeneratorLoading" :class="{'bg-primary text-primary-foreground': generatorLanguage === 'English'}" class="text-xs font-semibold px-3 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50">English</button>
+                            <button @click="fetchGeneratedIdeas(true, 'Hindi')" :disabled="isGeneratorLoading" :class="{'bg-primary text-primary-foreground': generatorLanguage === 'Hindi'}" class="text-xs font-semibold px-3 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50">Hindi</button>
+                            <button @click="fetchGeneratedIdeas(true, 'Mix')" :disabled="isGeneratorLoading" :class="{'bg-primary text-primary-foreground': generatorLanguage === 'Mix'}" class="text-xs font-semibold px-3 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50">Mix</button>
+                            <button @click="fetchGeneratedIdeas(true, 'Hinglish')" :disabled="isGeneratorLoading" :class="{'bg-primary text-primary-foreground': generatorLanguage === 'Hinglish'}" class="text-xs font-semibold px-3 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50">Hinglish</button>
+                        </div>
+                    </div>
+                </div>
+                {# Results Body (Scrollable) #}
+                <div class="p-6 overflow-y-auto bg-background/50 flex-grow">
+                    {# Loading State #}
+                    <div x-show="isGeneratorLoading" class="text-center py-8 flex flex-col justify-center items-center h-full">
+                        <i class="fa-solid fa-spinner animate-spin text-4xl text-primary"></i>
+                        <p class="mt-4 text-lg font-semibold text-foreground">Generating new ideas...</p>
+                        <p class="mt-2 text-sm text-muted-foreground h-5" x-text="loadingStepMessage"></p>
+                    </div>
+                    {# Content Display #}
+                    <template x-if="generatedIdeas.length > 0 && !isGeneratorLoading && generatedIdeas[currentIdeaIndex]">
+                        <div class="space-y-4">
+                            {# Editable Title #}
+                             <input type="text" x-model="generatedIdeas[currentIdeaIndex].title" class="text-lg font-semibold bg-transparent border-b border-dashed border-input focus:outline-none focus:border-primary w-full pb-1">
+                             {# Rendered Outline using MarkedJS #}
+                            <div class="script-content prose prose-sm max-w-none mt-4" x-html="window.marked ? marked.parse(generatedIdeas[currentIdeaIndex].outline || '') : (generatedIdeas[currentIdeaIndex]?.outline || 'Could not render outline.')"></div>
+                        </div>
+                    </template>
+                     {# Error Display inside results #}
+                     <template x-if="generatedIdeas.length > 0 && !isGeneratorLoading && generatedIdeas[currentIdeaIndex]?.title?.includes('Failed')">
+                          <div class="p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/30">
+                               <p class="font-semibold">Generation Failed</p>
+                               <p class="text-sm mt-1" x-text="generatedIdeas[currentIdeaIndex]?.outline || 'An unknown error occurred.'"></p>
+                          </div>
+                     </template>
+                </div>
+                {# Results Footer #}
+                <div class="p-4 bg-secondary/50 rounded-b-xl flex justify-between items-center flex-shrink-0 border-t">
+                    <div class="flex items-center gap-2">
+                        <button @click="previousIdea()" :disabled="currentIdeaIndex === 0 || isGeneratorLoading" class="px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button @click="nextIdea()" :disabled="currentIdeaIndex >= generatedIdeas.length - 1 || isGeneratorLoading" class="px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50"><i class="fa-solid fa-arrow-right"></i></button>
+                        <button @click="fetchGeneratedIdeas(true)" :disabled="isGeneratorLoading" class="p-2 rounded-full bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50" title="Generate New Variations"><i class="fa-solid fa-arrows-rotate"></i></button>
+                        <button @click="copyScript()" :disabled="isGeneratorLoading || generatedIdeas.length === 0 || generatedIdeas[currentIdeaIndex]?.title?.includes('Failed')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50"><i class="fa-regular fa-copy mr-2"></i><span x-text="copyButtonText"></span></button>
+                    </div>
+                    <button @click="saveIdeaToPlanner()" :disabled="isGeneratorLoading || generatedIdeas.length === 0 || generatedIdeas[currentIdeaIndex]?.title?.includes('Failed')" class="px-5 py-2 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><i class="fa-solid fa-plus mr-2"></i> Save to Planner</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {# Edit Idea Modal (Copied from original, ensure refs match JS) #}
+    <div x-show="isEditModalOpen" x-transition.opacity class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 modal-overlay" x-cloak>
+        <div @click.away="isEditModalOpen = false" class="bg-card rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col modal-content">
+            <div class="p-5 border-b flex justify-between items-center flex-shrink-0">
+                <h3 class="text-lg font-bold">Edit Idea</h3>
+                {# Tabs #}
+                <div class="flex items-center gap-2 bg-secondary p-1 rounded-lg border">
+                    <button @click="editModalTab = 'write'" :class="{ 'bg-primary text-primary-foreground': editModalTab === 'write' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">Write</button>
+                    <button @click="editModalTab = 'preview'" :class="{ 'bg-primary text-primary-foreground': editModalTab === 'preview' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">Preview</button>
+                    {# Transcript tab removed #}
+                </div>
+            </div>
+            {# Modal Body (Scrollable) #}
+            <div class="p-6 space-y-4 overflow-y-auto flex-grow">
+                {# Display Title #}
+                <div>
+                    <label class="text-sm font-medium">Display Title (Shown on board)</label>
+                    <input type="text" x-model="editingIdea.display_title" class="w-full mt-1 bg-background border border-input rounded-lg p-2 focus:ring-primary focus:border-primary">
+                </div>
+                {# Full Title #}
+                <div>
+                    <label class="text-sm font-medium">Full Internal Title</label>
+                    <input type="text" x-model="editingIdea.title" class="w-full mt-1 bg-background border border-input rounded-lg p-2 focus:ring-primary focus:border-primary">
+                </div>
+                {# Notes/Script Area #}
+                <div>
+                    <label class="text-sm font-medium">Script / Notes (Markdown)</label>
+                    {# Write Tab #}
+                    <div x-show="editModalTab === 'write'">
+                        <textarea x-model="editingIdea.notes" class="w-full mt-1 bg-background border border-input rounded-lg p-3 h-72 resize-none font-mono text-sm focus:ring-primary focus:border-primary"></textarea>
+                    </div>
+                    {# Preview Tab #}
+                    <div x-show="editModalTab === 'preview'" class="w-full mt-1 bg-background border border-input rounded-lg p-4 h-72 overflow-y-auto">
+                        {# Add a label for clarity #}
+                        <label class="text-xs font-semibold text-muted-foreground block mb-2">PREVIEW</label>
+                        <div class="prose prose-sm max-w-none script-content" x-html="window.marked ? marked.parse(editingIdea.notes || '*No script written yet. Click on the Write tab.*') : (editingIdea.notes || 'No script written yet.')"></div>
+                    </div>
+                </div>
+            </div>
+            {# Modal Footer #}
+            <div class="p-4 bg-secondary/50 rounded-b-xl flex justify-between items-center flex-shrink-0 border-t">
+                <button @click="copyEditScript()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border"><i class="fa-regular fa-copy mr-2"></i><span x-text="editModalCopyText"></span></button>
+                <div class="flex gap-3">
+                    <button @click="isEditModalOpen = false" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+                    <button @click="saveIdea()" class="px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {# --- === NEW "Import from YouTube" Modal (Styled like others) === --- #}
+    <div x-show="isTranscriptModalOpen" x-transition.opacity class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 modal-overlay" x-cloak>
+        <div @click.away="closeTranscriptModal()" class="bg-card rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col modal-content">
+
+            <div class="p-4 border-b flex-shrink-0">
+                <h3 class="text-base font-bold text-foreground">Import Transcript from YouTube</h3>
+                <p class="text-xs text-muted-foreground">Paste a YouTube video link or ID to extract its transcript.</p>
+            </div>
+
+            {# Step 1: URL Input #}
+            <div x-show="transcriptStep === 'input'" class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="font-medium text-sm text-foreground">YouTube Video URL or ID</label>
+                    <input type="text" x-ref="transcriptUrlInput" x-model="transcriptUrl" class="w-full text-sm bg-background border border-input rounded-lg p-2.5 focus:ring-primary focus:border-primary" placeholder="e.g., https://www.youtube.com/watch?v=... or just VIDEO_ID">
+                </div>
+                {# Error Message Area #}
+                <div x-show="transcriptError" x-transition class="p-3 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/30" x-text="transcriptError"></div>
+                {# Buttons #}
+                <div class="pt-2 flex justify-end gap-3">
+                    <button @click="closeTranscriptModal()" class="px-5 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border">Cancel</button>
+                    <button @click="fetchTranscript()" class="px-5 py-2 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isTranscriptLoading">
+                        <span x-show="isTranscriptLoading"><i class="fa-solid fa-spinner animate-spin"></i> Fetching...</span>
+                        <span x-show="!isTranscriptLoading"><i class="fa-solid fa-download"></i> Fetch & Process</span>
+                    </button>
+                </div>
+            </div>
+
+            {# Step 2: Results (Tabs) #}
+            <div x-show="transcriptStep === 'results'" class="flex flex-col flex-grow min-h-0">
+                {# Tab Header #}
+                <div class="p-3 border-b flex-shrink-0 flex justify-between items-center">
+                     <div class="flex items-center gap-2 bg-secondary p-1 rounded-lg border">
+                        <button @click="transcriptTab = 'voiceover'" :class="{ 'bg-primary text-primary-foreground': transcriptTab === 'voiceover' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">AI Voice-over</button>
+                        <button @click="transcriptTab = 'script'" :class="{ 'bg-primary text-primary-foreground': transcriptTab === 'script' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">AI Full Script</button>
+                        <button @click="transcriptTab = 'original'" :class="{ 'bg-primary text-primary-foreground': transcriptTab === 'original' }" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors">Original</button>
+                    </div>
+                    {# Changed "Start Over" to "New Import" and added reset logic #}
+                    <button @click="transcriptStep = 'input'; transcriptError = ''; transcriptUrl = ''; transcriptData = { original: '', voiceover: '', script: '' }; $nextTick(() => $refs.transcriptUrlInput?.focus())" class="text-sm font-semibold text-primary hover:underline">
+                         <i class="fa-solid fa-arrow-left mr-1"></i> New Import
+                    </button>
+                </div>
+
+                 {# Optional Error Display below tabs #}
+                 <div x-show="transcriptError && transcriptStep === 'results'" x-transition class="p-3 mx-5 mt-3 bg-destructive/10 text-destructive text-sm rounded-lg border border-destructive/30" x-text="transcriptError"></div>
+
+                {# Tab Content (Scrollable) #}
+                <div class="p-5 overflow-y-auto flex-grow bg-background/50">
+                    {# AI Voiceover Tab Content #}
+                    <div x-show="transcriptTab === 'voiceover'">
+                         {# Use x-html for MarkedJS rendering #}
+                         <div x-show="transcriptData.voiceover && !transcriptData.voiceover.startsWith('Error:')" class="prose prose-sm max-w-none script-content" x-html="window.marked ? marked.parse(transcriptData.voiceover) : transcriptData.voiceover"></div>
+                         {# Show error/placeholder #}
+                         <div x-show="!transcriptData.voiceover || transcriptData.voiceover.startsWith('Error:')" class="text-sm text-muted-foreground italic">
+                              <p x-text="transcriptData.voiceover || 'AI Voiceover script could not be generated.'"></p>
+                         </div>
+                    </div>
+                     {# AI Script Tab Content #}
+                    <div x-show="transcriptTab === 'script'">
+                         {# Use x-html for MarkedJS rendering #}
+                         <div x-show="transcriptData.script && !transcriptData.script.startsWith('Error:')" class="prose prose-sm max-w-none script-content" x-html="window.marked ? marked.parse(transcriptData.script) : transcriptData.script"></div>
+                          {# Show error/placeholder #}
+                          <div x-show="!transcriptData.script || transcriptData.script.startsWith('Error:')" class="text-sm text-muted-foreground italic">
+                              <p x-text="transcriptData.script || 'AI Full script could not be generated.'"></p>
+                         </div>
+                    </div>
+                    {# Original Tab Content #}
+                    <div x-show="transcriptTab === 'original'">
+                         {# Use readonly textarea for better raw text display #}
+                         <textarea readonly class="w-full bg-background border border-input rounded-lg p-3 h-96 resize-none font-mono text-xs disabled:opacity-70" x-model="transcriptData.original" :disabled="!transcriptData.original || transcriptData.original === 'Original transcript not available.'"></textarea>
+                         {# Show placeholder if empty/unavailable #}
+                         <p x-show="!transcriptData.original || transcriptData.original === 'Original transcript not available.'" class="text-sm text-muted-foreground italic mt-2">Original transcript could not be retrieved.</p>
+                    </div>
+                </div>
+
+
+                {# Footer Buttons #}
+                <div class="p-4 bg-secondary/50 rounded-b-xl flex justify-between items-center flex-shrink-0 border-t">
+                    <button @click="copyTranscript()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-secondary text-secondary-foreground hover:bg-border disabled:opacity-50" :disabled="transcriptCopyText.includes('Nothing') || transcriptCopyText.includes('Failed') || transcriptCopyText.includes('Error')"><i class="fa-regular fa-copy mr-2"></i><span x-text="transcriptCopyText"></span></button>
+                    <button @click="addTranscriptToPlanner()" class="px-5 py-2 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90"><i class="fa-solid fa-plus mr-2"></i> Add to Planner</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {# Delete Confirmation Modal (Copied from original) #}
+    <div x-show="showDeleteConfirmModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm modal-overlay" x-cloak>
+        <div @click.away="showDeleteConfirmModal = false" class="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 text-center p-6">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10"><i class="fa-solid fa-trash-can text-destructive text-xl"></i></div>
+            <div class="mt-4">
+                <h3 class="text-lg leading-6 font-bold text-foreground">Confirm Deletion</h3>
+                <div class="mt-2"><p class="text-sm text-muted-foreground">Are you sure you want to delete this idea? This action cannot be undone.</p></div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button @click="showDeleteConfirmModal = false" type="button" class="flex-1 inline-flex justify-center rounded-lg shadow-sm px-4 py-2 bg-secondary text-base font-medium text-foreground hover:bg-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button>
+                <button @click="proceedWithDelete()" type="button" class="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-destructive text-base font-medium text-white hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive">Delete</button>
+            </div>
+        </div>
+    </div>
+
+</div> {# End of main Alpine component div #}
+
+{# --- JavaScript Includes --- #}
+<script>
+    // Pass URLs from Flask to JavaScript
+    const PAGE_DATA = {
+        urls: {
+            getIdeas: "{{ url_for('planner.get_ideas') }}",
+            createIdea: "{{ url_for('planner.create_idea') }}",
+            updateIdeaBase: "{{ url_for('planner.update_idea', idea_id=0) }}".slice(0, -1), // Remove trailing 0
+            deleteIdeaBase: "{{ url_for('planner.delete_idea', idea_id=0) }}".slice(0, -1), // Remove trailing 0
+            moveIdea: "{{ url_for('planner.move_idea') }}",
+            generateIdeas: "{{ url_for('planner.api_generate_ideas') }}",
+            importTranscript: "{{ url_for('planner.api_import_transcript') }}" // Ensure this route is correct
+        }
+    };
+</script>
+{# Link to your updated planner.js file #}
+<script src="{{ url_for('static', filename='js/planner.js') }}"></script>
+{% endblock %}

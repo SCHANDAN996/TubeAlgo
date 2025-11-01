@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block title %}Refund & Cancellation Policy - TubeAlgo{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16">
+    <div class="max-w-4xl mx-auto bg-card p-8 md:p-12 rounded-xl border shadow-sm">
+        <article class="prose dark:prose-invert">
+            <h1>Refund & Cancellation Policy</h1>
+            <p><strong>Last updated:</strong> {{ now().strftime('%B %d, %Y') }}</p>
+
+            <h2>Subscription Cancellation</h2>
+            <p>You can cancel your subscription at any time from your account settings. The cancellation will be effective at the end of your current billing period. You will continue to have access to the paid features until the end of your billing period.</p>
+
+            <h2>Refund Policy</h2>
+            <p><strong>We do not offer refunds for any subscription payments.</strong></p>
+            <p>Since TubeAlgo provides immediate access to digital data, analytics, and insights upon subscription, we maintain a strict no-refund policy. We encourage you to use our Free plan to evaluate the service before upgrading to a paid plan.</p>
+            <p>Once a payment is made for a subscription, it is non-refundable, regardless of whether you use the service or not.</p>
+
+            <h2>Contact Us</h2>
+            <p>If you have any questions about this policy, please contact us at <a href="mailto:tubealgoofficial@gmail.com">tubealgoofficial@gmail.com</a>.</p>
+        </article>
+    </div>
+</div>
+{% endblock %}
